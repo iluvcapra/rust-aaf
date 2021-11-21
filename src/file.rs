@@ -8,11 +8,13 @@ use crate::types::{OMByteOrder, OMVersion, OMPropertyId, OMStoredForm,
 
 use cfb;
 
+/// An AAF file.
 pub struct AAFFile<F> {
     f : cfb::CompoundFile<F>
 }
 
 impl<F> AAFFile<F> {
+    /// A new `AAFFile` with a `cfb::CompoundFile` 
     pub fn with_cfb(cfb: cfb::CompoundFile<F>) -> Self {
         Self { f: cfb }
     }
@@ -24,7 +26,6 @@ impl<F> AAFFile<F> {
         InterchangeObjectDescriptorIter(entries)
     }
 }
-
 
 impl<F: Read + Seek> AAFFile<F> {
 
@@ -63,4 +64,3 @@ impl<F: Read + Seek> AAFFile<F> {
         Self::parse_properties_file(stream)
     }
 }
-

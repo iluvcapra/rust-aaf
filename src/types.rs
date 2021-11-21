@@ -1,4 +1,4 @@
-
+// Stored Format Types
 
 pub type OMByteOrder = u8;
 pub type OMVersion = u8;
