@@ -45,4 +45,8 @@ impl<I: Iterator<Item=cfb::Entry>> Iterator for InterchangeObjectDescriptorIter<
     }
 }
 
-
+pub enum InterchangeObjectReferent {
+    Single(InterchangeObjectDescriptor),
+    Vector(Vec<InterchangeObjectDescriptor>),
+    Set(Vec<InterchangeObjectDescriptor>)
+}

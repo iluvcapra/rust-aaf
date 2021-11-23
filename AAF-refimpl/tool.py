@@ -32,12 +32,6 @@ klasses = []
 
 for m in class_def.findall(comments_removed):
     this_klass = {}
-    #print("Class: ", m[0])
-    #print("id: ", m[1])
-    #print("superclass: ", m[2])
-    #print("is concrete?:", m[3])
-    #print("def:", m[4])
-    
     this_klass['name'] = m[0]
     this_klass['id'] = m[1]
     this_klass['superclass'] = m[2]

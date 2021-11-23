@@ -1,4 +1,5 @@
-use cfb;
+extern crate cfb;
+extern crate encoding;
 
 mod interchange_object;
 mod properties;
@@ -22,8 +23,8 @@ fn main() {
         }
     }
     
-    let mut objects_properties : Vec<(InterchangeObjectDescriptor,
-                                      Vec<PropertyDescriptor>)> = vec![];
+    let mut objects_properties : Vec<(InterchangeObjectDescriptor, 
+            Vec<PropertyDescriptor>)> = vec![];
 
     {
         for e in objects.into_iter() {
