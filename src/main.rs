@@ -7,7 +7,6 @@ mod types;
 mod file;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
-use crate::properties::PropertyDescriptor;
 use crate::file::AAFFile;
 
 fn main() {
@@ -15,28 +14,42 @@ fn main() {
     let comp = cfb::open(test_path).unwrap();
     
     let mut f = AAFFile::with_cfb(comp);
-    let mut objects : Vec<InterchangeObjectDescriptor> = vec![];
-
-    { 
-        for e in f.interchange_objects() {
-            objects.push(e)
-        }
-    }
     
-    let mut objects_properties : Vec<(InterchangeObjectDescriptor, 
-            Vec<PropertyDescriptor>)> = vec![];
+    let root = f.root_object().unwrap();
+    
+    println!("Root object: {:?}", root); 
+    
+    let props = f.properties(&root);
+    
+    println!("Properties: {:?}", props);
 
-    {
-        for e in objects.into_iter() {
-            let properties = f.properties(&e);
-            objects_properties.push((e, properties));
-        }
-    }
+    let header_property = f.property_by_pid(&root, 0x01).unwrap();
 
-    for e in objects_properties.into_iter() {
-        println!("Object: {:?}", e.0);
-        for p in e.1.into_iter() {
-            println!("- {:?}", p);
-        }
-    }
+    let header = f.resolve_property_value(&root, &header_property);
+
+    println!("Content: {:?}", header);
+
+
+    // { 
+    //     for e in f.interchange_objects() {
+    //         objects.push(e)
+    //     }
+    // }
+    
+    // let mut objects_properties : Vec<(InterchangeObjectDescriptor, 
+    //         Vec<PropertyDescriptor>)> = vec![];
+
+    // {
+    //     for e in objects.into_iter() {
+    //         let properties = f.properties(&e);
+    //         objects_properties.push((e, properties));
+    //     }
+    // }
+
+    // for e in objects_properties.into_iter() {
+    //     println!("Object: {:?}", e.0);
+    //     for p in e.1.into_iter() {
+    //         println!("- {:?}", p);
+    //     }
+    // }
 }

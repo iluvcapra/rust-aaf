@@ -7,7 +7,11 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use crate::types::{OMByteOrder, OMVersion, OMPropertyId, 
     OMStoredForm, OMPropertyCount, OMPropertySize};
 
+use crate::interchange_object::InterchangeObjectDescriptor;
+
+use std::path::PathBuf;
 use std::io::{Read, Seek};
+
 
 pub const SF_DATA : OMStoredForm = 0x0082;
 pub const SF_DATA_STREAM : OMStoredForm = 0x0042;
@@ -20,6 +24,47 @@ pub const SF_WEAK_OBJECT_REF_SET : OMStoredForm = 0x001a;
 pub const SF_WEAK_OBJECT_STORED_OBJ_ID : OMStoredForm = 0x03;
 pub const SF_UNIQUE_OBJ_ID : OMStoredForm = 0x86;
 pub const SF_OPAQUE_STREAM : OMStoredForm = 0x40;
+
+pub enum PropertyValue {
+    Data(Box<Vec<u8>>),
+    Stream(PathBuf),
+    Single(InterchangeObjectDescriptor),
+    Vector(Vec<InterchangeObjectDescriptor>),
+    Set(Vec<InterchangeObjectDescriptor>)
+}
+
+impl fmt::Debug for PropertyValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Data(v) => {
+                f.debug_struct("PropertyValue::Data")
+                    .field("data", v)
+                    .finish()
+            },
+            Self::Stream(v) => {
+                f.debug_struct("PropertyValue::Stream")
+                    .field("path", v)
+                    .finish()    
+            },
+            Self::Single(v) => {
+                f.debug_struct("PropertyValue::SingleObject")
+                    .field("obj", v)
+                    .finish()
+            },
+            Self::Vector(v) => {
+                f.debug_struct("PropertyValue::Vector")
+                    .field("objects", v)
+                    .finish()
+            },
+            Self::Set(v) => {
+                f.debug_struct("PropertyValue::Set")
+                    .field("objects", v)
+                    .finish()
+            }
+        }
+    }
+}
+
 
 pub struct PropertyDescriptor {
     pub pid : OMPropertyId,
