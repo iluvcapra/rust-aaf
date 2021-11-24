@@ -16,15 +16,9 @@ use cfb;
 /// An AAF file.
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
+    weakref_table: Vec<Vec<OMPropertyId>>
 }
 
-impl<F> AAFFile<F> {
-    /// A new `AAFFile` with a `cfb::CompoundFile`
-    pub fn with_cfb(cfb: cfb::CompoundFile<F>) -> Self {
-        Self { f: cfb }
-    }
-
-}
 
 impl<F> AAFFile<F> { 
 
@@ -49,8 +43,15 @@ impl<F> AAFFile<F> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
-    fn weak_refs_table(&mut self) -> Vec<Vec<OMPropertyId>> {
-        let mut ref_props_stream = self.f.open_stream(PathBuf::from("/referenced properties"))
+
+    /// A new `AAFFile` with a `cfb::CompoundFile`
+    pub fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
+        let weakref_table = Self::weak_refs_table(&mut cfb);
+        Self { f: cfb , weakref_table: weakref_table }
+    }
+
+    fn weak_refs_table(f: &mut cfb::CompoundFile<F>) -> Vec<Vec<OMPropertyId>> {
+        let mut ref_props_stream = f.open_stream(PathBuf::from("/referenced properties"))
             .expect("Failed to open referenced properties stream");
 
         let _bom = ref_props_stream.read_u8().unwrap() as OMByteOrder;
@@ -281,16 +282,5 @@ mod tests {
 
         let _p1 = f.property_by_pid(&root, 0x01).unwrap();
         let _p2 = f.property_by_pid(&root, 0x02).unwrap();
-    }
-
-    #[test]
-    fn test_weakref_table() {
-        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
-        let comp = cfb::open(test_path).unwrap();
-        let mut f = AAFFile::with_cfb(comp);
-        
-        let _weakrefs = f.weak_refs_table();
-
-        assert!(_weakrefs.len() > 0);
     }
 }
