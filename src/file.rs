@@ -12,7 +12,6 @@ use crate::types::{OMKeySize, OMPropertyId};
 
 use cfb;
 
-
 /// An AAF file.
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
@@ -47,15 +46,14 @@ impl<F> AAFFile<F> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
-    
     fn weak_refs_table(&mut self) -> () {
         todo!()
     }
 
     pub fn properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<PropertyDescriptor> {
         let properties_path = object.path.join("properties");
-        let stream = self.f.open_stream(&properties_path)
-            .expect(&format!("Failed to open `properties` stream for object {:?}",
+        let stream = self.f.open_stream(&properties_path).expect(&format!(
+            "Failed to open `properties` stream for object {:?}",
             object
         ));
 
@@ -75,7 +73,6 @@ impl<F: Read + Seek> AAFFile<F> {
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
     ) -> Box<Vec<u8>> {
-        
         self.property_by_pid(&object, pid).unwrap().value
     }
 
@@ -123,20 +120,20 @@ impl<F: Read + Seek> AAFFile<F> {
         property: &PropertyDescriptor,
     ) -> PropertyValue {
         let raw_data = Self::get_raw_property_value(self, object, property.pid);
-        
+
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
             SF_DATA_STREAM => {
-                let raw_name = &raw_data[0..raw_data.len()-2];
+                let raw_name = &raw_data[0..raw_data.len() - 2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
 
                 let ref_path = object.path.join(decoded_name);
                 PropertyValue::Stream(ref_path)
-            },
+            }
             SF_STRONG_OBJECT_REF => {
-                let raw_name = &raw_data[0..raw_data.len()-2];
+                let raw_name = &raw_data[0..raw_data.len() - 2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
@@ -147,7 +144,7 @@ impl<F: Read + Seek> AAFFile<F> {
                     .expect("Failed to locate object by path")
             }
             SF_STRONG_OBJECT_REF_VECTOR => {
-                let raw_name = &raw_data[0..raw_data.len()-2];
+                let raw_name = &raw_data[0..raw_data.len() - 2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
@@ -178,11 +175,11 @@ impl<F: Read + Seek> AAFFile<F> {
                 PropertyValue::Vector(members)
             }
             SF_STRONG_OBJECT_REF_SET => {
-                let raw_name = &raw_data[0..raw_data.len()-2];
+                let raw_name = &raw_data[0..raw_data.len() - 2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Strict)
-                    .expect("Failed to decode object reference by name"); 
-                
+                    .expect("Failed to decode object reference by name");
+
                 let index_name = format!("{} index", decoded_name);
 
                 let ref_path = object.path.join(&index_name);
@@ -217,22 +214,22 @@ impl<F: Read + Seek> AAFFile<F> {
             SF_WEAK_OBJECT_REF_SET => {
                 todo!()
             }
-            _ => panic!("Unrecgonized stored form found.") 
+            _ => panic!("Unrecgonized stored form found."),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid; 
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_get_root() {
         let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let f = AAFFile::with_cfb(comp);
-        let _root = f.root_object().unwrap(); 
+        let _root = f.root_object().unwrap();
     }
 
     #[test]
@@ -245,18 +242,18 @@ mod tests {
             assert!(i.auid != Uuid::nil());
         }
     }
-    
+
     #[test]
     fn test_get_properties() {
         let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let mut f = AAFFile::with_cfb(comp);
-        let root = f.root_object().unwrap(); 
-        
+        let root = f.root_object().unwrap();
+
         let props = f.properties(&root);
 
         assert_eq!(props.len(), 2, "Incorrect number of properties detected");
-    
+
         let _p1 = f.property_by_pid(&root, 0x01).unwrap();
         let _p2 = f.property_by_pid(&root, 0x02).unwrap();
     }
