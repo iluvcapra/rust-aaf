@@ -12,6 +12,7 @@ use crate::types::{OMKeySize, OMPropertyId};
 
 use cfb;
 
+
 /// An AAF file.
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
@@ -46,6 +47,11 @@ impl<F> AAFFile<F> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
+    
+    fn weak_refs_table(&mut self) -> () {
+        todo!()
+    }
+
     pub fn properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<PropertyDescriptor> {
         let properties_path = object.path.join("properties");
         let stream = self.f.open_stream(&properties_path)
@@ -128,8 +134,7 @@ impl<F: Read + Seek> AAFFile<F> {
 
                 let ref_path = object.path.join(decoded_name);
                 PropertyValue::Stream(ref_path)
-            }
-            SF_OPAQUE_STREAM => panic!("Attempted to read opaque stream"),
+            },
             SF_STRONG_OBJECT_REF => {
                 let raw_name = &raw_data[0..raw_data.len()-2];
                 let decoded_name = UTF_16LE
@@ -210,9 +215,6 @@ impl<F: Read + Seek> AAFFile<F> {
                 todo!()
             }
             SF_WEAK_OBJECT_REF_SET => {
-                todo!()
-            }
-            SF_WEAK_OBJECT_STORED_OBJ_ID => {
                 todo!()
             }
             _ => panic!("Unrecgonized stored form found.") 
