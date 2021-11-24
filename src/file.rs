@@ -117,10 +117,11 @@ impl<F: Read + Seek> AAFFile<F> {
         property: &PropertyDescriptor,
     ) -> PropertyValue {
         let raw_data = Self::get_raw_property_value(self, object, property.pid);
-        let raw_name = &raw_data[0..raw_data.len()-2];
+        
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
             SF_DATA_STREAM => {
+                let raw_name = &raw_data[0..raw_data.len()-2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
@@ -130,17 +131,18 @@ impl<F: Read + Seek> AAFFile<F> {
             }
             SF_OPAQUE_STREAM => panic!("Attempted to read opaque stream"),
             SF_STRONG_OBJECT_REF => {
+                let raw_name = &raw_data[0..raw_data.len()-2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
 
                 let ref_path = object.path.join(decoded_name);
-                println!("Ref path: {:?}", &ref_path);
                 self.interchange_object(ref_path)
                     .map(|obj| PropertyValue::Single(obj))
                     .expect("Failed to locate object by path")
             }
             SF_STRONG_OBJECT_REF_VECTOR => {
+                let raw_name = &raw_data[0..raw_data.len()-2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Ignore)
                     .expect("Failed to decode object reference by name");
@@ -159,7 +161,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let members = vector_indicies
                     .into_iter()
                     .map(|i| {
-                        let member_name = format!("{}{{{:x}}}", index_name, i);
+                        let member_name = format!("{}{{{:x}}}", decoded_name, i);
                         object.path.join(member_name)
                     })
                     .map(|path| {
@@ -171,11 +173,11 @@ impl<F: Read + Seek> AAFFile<F> {
                 PropertyValue::Vector(members)
             }
             SF_STRONG_OBJECT_REF_SET => {
+                let raw_name = &raw_data[0..raw_data.len()-2];
                 let decoded_name = UTF_16LE
                     .decode(raw_name, DecoderTrap::Strict)
                     .expect("Failed to decode object reference by name"); 
                 
-                let clean_name = decoded_name.trim_end_matches(char::from(0));
                 let index_name = format!("{} index", decoded_name);
 
                 let ref_path = object.path.join(&index_name);
@@ -190,7 +192,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let members = set_indicies
                     .into_iter()
                     .map(|i| {
-                        let member_name = format!("{}{{{:x}}}", index_name, i.0);
+                        let member_name = format!("{}{{{:x}}}", decoded_name, i.0);
                         object.path.join(member_name)
                     })
                     .map(|path| {
@@ -220,20 +222,31 @@ impl<F: Read + Seek> AAFFile<F> {
 
 #[cfg(test)]
 mod tests {
-    
+    use uuid::Uuid; 
     use super::*;
 
     #[test]
     fn test_get_root() {
-        let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let f = AAFFile::with_cfb(comp);
         let _root = f.root_object().unwrap(); 
     }
+
+    #[test]
+    fn test_obj_iterator() {
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let comp = cfb::open(test_path).unwrap();
+        let mut f = AAFFile::with_cfb(comp);
+
+        for i in f.interchange_objects() {
+            assert!(i.auid != Uuid::nil());
+        }
+    }
     
     #[test]
     fn test_get_properties() {
-        let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let mut f = AAFFile::with_cfb(comp);
         let root = f.root_object().unwrap(); 

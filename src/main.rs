@@ -8,6 +8,63 @@ mod file;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
+use crate::properties::*;
+
+use std::io::{Read, Seek};
+
+fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
+    where T: Read + Seek {
+    
+    fn print_obj_impl<T>(file: &mut AAFFile<T>, 
+        obj: &InterchangeObjectDescriptor, 
+        indent: usize) where T: Read + Seek {
+        
+        let indent_str = String::from_utf8(vec![b' '; indent]).unwrap();
+            
+        println!("{}Object({:?}): ",indent_str, obj.path);
+        for prop in file.properties(obj) {
+            if prop.stored_form == SF_WEAK_OBJECT_REF ||
+                prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
+                    prop.stored_form == SF_WEAK_OBJECT_REF_VECTOR ||
+                    prop.stored_form == SF_WEAK_OBJECT_STORED_OBJ_ID {
+                continue;
+            }
+
+            let val = file.resolve_property_value(obj, &prop);
+
+            match val {
+                PropertyValue::Data(v) => {
+                    println!("  {}> (pid {:#04x}) = len({:?})", indent_str, prop.pid, v.len()); 
+                },
+                PropertyValue::Stream(p) => {
+                    println!("  {}> (pid {:#04x}) = stream({:?})", indent_str, prop.pid, p);
+                },
+                PropertyValue::Single(o) => {
+                    println!("  {}> (pid {:#04x}) => ", indent_str, prop.pid);
+                    print_obj_impl(file, &o, indent + 4);
+                    println!("  {}}}", indent_str);
+                },
+                PropertyValue::Vector(o) => {
+                    println!("  {}> (pid {:#04x}) = VEC[", indent_str, prop.pid);
+                    for child in o {
+                        print_obj_impl(file, &child, indent + 4);
+                    }
+                    println!("  {}]", indent_str);
+                },
+                PropertyValue::Set(o) => {
+                    println!("  {}> (pid {:#04x}) = SET(", indent_str, prop.pid);
+                    for child in o {
+                        print_obj_impl(file, &child, indent + 4);
+                    }
+                    println!("  {})", indent_str);
+
+                }
+            }
+        }
+    }
+
+    print_obj_impl(file, obj, 0);
+}
 
 fn main() {
     let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
@@ -16,40 +73,6 @@ fn main() {
     let mut f = AAFFile::with_cfb(comp);
     
     let root = f.root_object().unwrap();
-    
-    println!("Root object: {:?}", root); 
-    
-    let props = f.properties(&root);
-    
-    println!("Properties: {:?}", props);
-
-    let header_property = f.property_by_pid(&root, 0x01).unwrap();
-
-    let header = f.resolve_property_value(&root, &header_property);
-
-    println!("Content: {:?}", header);
-
-
-    // { 
-    //     for e in f.interchange_objects() {
-    //         objects.push(e)
-    //     }
-    // }
-    
-    // let mut objects_properties : Vec<(InterchangeObjectDescriptor, 
-    //         Vec<PropertyDescriptor>)> = vec![];
-
-    // {
-    //     for e in objects.into_iter() {
-    //         let properties = f.properties(&e);
-    //         objects_properties.push((e, properties));
-    //     }
-    // }
-
-    // for e in objects_properties.into_iter() {
-    //     println!("Object: {:?}", e.0);
-    //     for p in e.1.into_iter() {
-    //         println!("- {:?}", p);
-    //     }
-    // }
+   
+    print_object(&mut f, &root);
 }
