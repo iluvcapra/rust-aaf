@@ -1,5 +1,6 @@
+use std::io;
 use std::io::{Read, Seek};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -22,9 +23,11 @@ impl<F> AAFFile<F> {
     pub fn with_cfb(cfb: cfb::CompoundFile<F>) -> Self {
         Self { f: cfb }
     }
+
 }
 
-impl<F> AAFFile<F> {
+impl<F> AAFFile<F> { 
+
     pub fn interchange_objects(&mut self) -> InterchangeObjectDescriptorIter<cfb::Entries> {
         let entries = self.f.walk();
         InterchangeObjectDescriptorIter(entries)
@@ -50,13 +53,14 @@ impl<F: Read + Seek> AAFFile<F> {
         let mut ref_props_stream = self.f.open_stream(PathBuf::from("/referenced properties"))
             .expect("Failed to open referenced properties stream");
 
-        let _bom = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMByteOrder;
+        let _bom = ref_props_stream.read_u8().unwrap() as OMByteOrder;
         let path_count = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMPropertyCount;
-        let _pid_count = ref_props_stream.read_u32::<LittleEndian>().unwrap();
+        let pid_count = ref_props_stream.read_u32::<LittleEndian>().unwrap();
         
         let mut retval : Vec<Vec<OMPropertyId>> = vec![];
         let mut this_path : Vec<OMPropertyId> = vec![];
-        for _ in 0..path_count {
+
+        for _ in 0..pid_count {
             let this_pid = ref_props_stream.read_u16::<LittleEndian>()
                 .unwrap() as OMPropertyId;
 
@@ -67,6 +71,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 this_path.push(this_pid);
             }
         }
+        assert_eq!(path_count as usize, retval.len(),"Weak ref table has inconsistent length");
         retval
     }
 
@@ -276,5 +281,16 @@ mod tests {
 
         let _p1 = f.property_by_pid(&root, 0x01).unwrap();
         let _p2 = f.property_by_pid(&root, 0x02).unwrap();
+    }
+
+    #[test]
+    fn test_weakref_table() {
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let comp = cfb::open(test_path).unwrap();
+        let mut f = AAFFile::with_cfb(comp);
+        
+        let _weakrefs = f.weak_refs_table();
+
+        assert!(_weakrefs.len() > 0);
     }
 }
