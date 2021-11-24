@@ -21,6 +21,8 @@ pub const SF_STRONG_OBJECT_REF_SET : OMStoredForm = 0x003a;
 pub const SF_WEAK_OBJECT_REF : OMStoredForm = 0x0002;
 pub const SF_WEAK_OBJECT_REF_VECTOR : OMStoredForm = 0x0012;
 pub const SF_WEAK_OBJECT_REF_SET : OMStoredForm = 0x001a;
+
+// Not Yet Implemented
 // pub const SF_WEAK_OBJECT_STORED_OBJ_ID : OMStoredForm = 0x03;
 // pub const SF_UNIQUE_OBJ_ID : OMStoredForm = 0x86;
 // pub const SF_OPAQUE_STREAM : OMStoredForm = 0x40;
