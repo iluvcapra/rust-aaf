@@ -1,4 +1,5 @@
 use std::io;
+use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 
@@ -39,6 +40,13 @@ impl<F> AAFFile<F> {
 
     pub fn root_object(&self) -> Option<InterchangeObjectDescriptor> {
         self.interchange_object(PathBuf::from("/"))
+    }
+}
+
+impl AAFFile<File> {
+    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<AAFFile<File>> {
+        let cfb = cfb::open(path)?;
+        Ok( Self::with_cfb(cfb) )
     }
 }
 

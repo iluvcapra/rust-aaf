@@ -69,9 +69,8 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
 
 fn main() {
     let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
-    let comp = cfb::open(test_path).unwrap();
-    
-    let mut f = AAFFile::with_cfb(comp);
+    let mut f = AAFFile::open(test_path)
+        .expect("error opening file");
     
     let root = f.root_object().unwrap();
    
