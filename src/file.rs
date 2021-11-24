@@ -8,7 +8,7 @@ use encoding::{DecoderTrap, Encoding};
 
 use crate::interchange_object::{InterchangeObjectDescriptor, InterchangeObjectDescriptorIter};
 use crate::properties::*;
-use crate::types::{OMKeySize, OMPropertyId};
+use crate::types::{OMKeySize, OMPropertyId, OMByteOrder, OMPropertyCount};
 
 use cfb;
 
@@ -46,8 +46,28 @@ impl<F> AAFFile<F> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
-    fn weak_refs_table(&mut self) -> () {
-        todo!()
+    fn weak_refs_table(&mut self) -> Vec<Vec<OMPropertyId>> {
+        let mut ref_props_stream = self.f.open_stream(PathBuf::from("/referenced properties"))
+            .expect("Failed to open referenced properties stream");
+
+        let _bom = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMByteOrder;
+        let path_count = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMPropertyCount;
+        let _pid_count = ref_props_stream.read_u32::<LittleEndian>().unwrap();
+        
+        let mut retval : Vec<Vec<OMPropertyId>> = vec![];
+        let mut this_path : Vec<OMPropertyId> = vec![];
+        for _ in 0..path_count {
+            let this_pid = ref_props_stream.read_u16::<LittleEndian>()
+                .unwrap() as OMPropertyId;
+
+            if this_pid == 0x0000u16 {
+                retval.push(this_path);
+                this_path = vec![];
+            } else {
+                this_path.push(this_pid);
+            }
+        }
+        retval
     }
 
     pub fn properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<PropertyDescriptor> {
