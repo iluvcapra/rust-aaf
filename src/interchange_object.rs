@@ -45,10 +45,4 @@ impl<I: Iterator<Item=cfb::Entry>> Iterator for InterchangeObjectDescriptorIter<
     }
 }
 
-pub enum PropertyValue {
-    Data(Vec<u8>),
-    Stream(PathBuf),
-    Single(InterchangeObjectDescriptor),
-    Vector(Vec<InterchangeObjectDescriptor>),
-    Set(Vec<InterchangeObjectDescriptor>)
-}
+

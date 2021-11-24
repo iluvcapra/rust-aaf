@@ -213,7 +213,36 @@ impl<F: Read + Seek> AAFFile<F> {
             SF_WEAK_OBJECT_STORED_OBJ_ID => {
                 todo!()
             }
-            _ => panic!("Unrecgonized stored form found. Exiting."),
+            _ => panic!("Unrecgonized stored form found.") 
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    
+    use super::*;
+
+    #[test]
+    fn test_get_root() {
+        let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let comp = cfb::open(test_path).unwrap();
+        let f = AAFFile::with_cfb(comp);
+        let _root = f.root_object().unwrap(); 
+    }
+    
+    #[test]
+    fn test_get_properties() {
+        let test_path =  "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let comp = cfb::open(test_path).unwrap();
+        let mut f = AAFFile::with_cfb(comp);
+        let root = f.root_object().unwrap(); 
+        
+        let props = f.properties(&root);
+
+        assert_eq!(props.len(), 2, "Incorrect number of properties detected");
+    
+        let _p1 = f.property_by_pid(&root, 0x01).unwrap();
+        let _p2 = f.property_by_pid(&root, 0x02).unwrap();
     }
 }
