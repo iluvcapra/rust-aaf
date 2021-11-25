@@ -35,10 +35,6 @@ pub enum PropertyValue {
 }
 
 impl PropertyValue {
-    pub fn properties<F:Read + Seek>(file: &mut AAFFile<F>,
-        object: &InterchangeObjectDescriptor) -> Vec<(OMPropertyId, Option<String>)> {
-        todo!()
-    }
 
     pub fn value_for_pid<F:Read+Seek>(file: &mut AAFFile<F>, 
         object: &InterchangeObjectDescriptor,
@@ -97,6 +93,16 @@ impl fmt::Debug for RawPropertyValue {
 }
 
 impl RawPropertyValue {
+
+    pub fn raw_property_value<F:Read + Seek>(
+        file: &mut AAFFile<F>,
+        object: &InterchangeObjectDescriptor,
+        pid: OMPropertyId,
+    ) -> Option<Box<Vec<u8>>> {
+        let raw_prop = file.raw_properties(object)
+            .into_iter().find(|p| p.pid == pid);
+        raw_prop.map(|e| e.value)
+    }
 
     pub fn from_properties_stream<F>(mut stream: cfb::Stream<F>) -> Vec<RawPropertyValue>  
         where F: Read + Seek {
