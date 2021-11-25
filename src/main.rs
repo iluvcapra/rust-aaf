@@ -22,7 +22,7 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         let indent_str = String::from_utf8(vec![b' '; indent]).unwrap();
             
         println!("{}Object({:?}) {{",indent_str, obj.path);
-        for prop in file.properties(obj) {
+        for prop in file.raw_properties(obj) {
 
             // hiding these options until they're implemented
             if prop.stored_form == SF_WEAK_OBJECT_REF ||

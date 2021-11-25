@@ -1,6 +1,6 @@
 use std::io;
 use std::fs::File;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Cursor};
 use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -10,7 +10,7 @@ use encoding::{DecoderTrap, Encoding};
 
 use crate::interchange_object::{InterchangeObjectDescriptor, InterchangeObjectDescriptorIter};
 use crate::properties::*;
-use crate::types::{OMKeySize, OMPropertyId, OMByteOrder, OMPropertyCount};
+use crate::types::{OMKeySize, OMPropertyId, OMByteOrder, OMPropertyCount, OMPropertyTag};
 
 use cfb;
 
@@ -84,22 +84,22 @@ impl<F: Read + Seek> AAFFile<F> {
         retval
     }
 
-    pub fn properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<PropertyDescriptor> {
+    pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawPropertyValue> {
         let properties_path = object.path.join("properties");
         let stream = self.f.open_stream(&properties_path).expect(&format!(
             "Failed to open `properties` stream for object {:?}",
             object
         ));
 
-        PropertyDescriptor::from_properties_stream(stream)
+        RawPropertyValue::from_properties_stream(stream)
     }
 
     pub fn property_by_pid(
         &mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
-    ) -> Option<PropertyDescriptor> {
-        self.properties(object).into_iter().find(|p| p.pid == pid)
+    ) -> Option<RawPropertyValue> {
+        self.raw_properties(object).into_iter().find(|p| p.pid == pid)
     }
 
     fn get_raw_property_value(
@@ -146,12 +146,25 @@ impl<F: Read + Seek> AAFFile<F> {
         }
 
         (first_free, last_free, ident_pid, key_list)
+    } 
+
+    fn resolve_weak_reference(&mut self, prop_data: &[u8]) -> InterchangeObjectDescriptor {
+
+        let mut cursor = Cursor::new(prop_data);
+        let tag = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
+        let pid = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+        let key_size = cursor.read_u8().unwrap() as OMKeySize;
+        let mut identification = vec![ 0u8 ; key_size as usize];
+        cursor.read_exact(&mut identification);
+        
+        todo!() 
+
     }
 
     pub fn resolve_property_value(
         &mut self,
         object: &InterchangeObjectDescriptor,
-        property: &PropertyDescriptor,
+        property: &RawPropertyValue,
     ) -> PropertyValue {
         let raw_data = Self::get_raw_property_value(self, object, property.pid);
 
@@ -284,7 +297,7 @@ mod tests {
         let mut f = AAFFile::with_cfb(comp);
         let root = f.root_object().unwrap();
 
-        let props = f.properties(&root);
+        let props = f.raw_properties(&root);
 
         assert_eq!(props.len(), 2, "Incorrect number of properties detected");
 
