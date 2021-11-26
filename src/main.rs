@@ -17,58 +17,61 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
     
     fn print_obj_impl<T>(file: &mut AAFFile<T>, 
         obj: &InterchangeObjectDescriptor, 
-        indent: usize) where T: Read + Seek {
+        indent: usize, descend: bool) where T: Read + Seek {
         
         let indent_str = String::from_utf8(vec![b' '; indent]).unwrap();
             
         println!("{}Object({:?}) {{",indent_str, obj.path);
-        for prop in file.raw_properties(obj) {
+        if descend {
+            for prop in file.raw_properties(obj) {
 
-            // hiding these options until they're implemented
-            if prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
-                    prop.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
-                continue;
-            }
+                // hiding these options until they're implemented
+                if prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
+                        prop.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
+                    continue;
+                }
 
-            let val = file.resolve_property_value(obj, &prop);
+                let val = file.resolve_property_value(obj, &prop);
 
-            match val {
-                PropertyValue::Data(v) => {
-                    println!("  {}(pid {:#04x}) = len({:?})", indent_str, prop.pid, v.len()); 
-                },
-                PropertyValue::Stream(p) => {
-                    println!("  {}(pid {:#04x}) = stream({:?})", indent_str, prop.pid, p);
-                },
-                PropertyValue::Single(o) => {
-                    println!("  {}(pid {:#04x}) => ", indent_str, prop.pid);
-                    print_obj_impl(file, &o, indent + 4);
-                    println!("  {}", indent_str);
-                },
-                PropertyValue::Vector(o) => {
-                    println!("  {}(pid {:#04x}) = [", indent_str, prop.pid);
-                    for child in o {
-                        print_obj_impl(file, &child, indent + 4);
+                match val {
+                    PropertyValue::Data(v) => {
+                        println!("  {}(pid {:#04x}) = len({:?})", indent_str, prop.pid, v.len()); 
+                    },
+                    PropertyValue::Stream(p) => {
+                        println!("  {}(pid {:#04x}) = stream({:?})", indent_str, prop.pid, p);
+                    },
+                    PropertyValue::Single(o) => {
+                        println!("  {}(pid {:#04x}) => ", indent_str, prop.pid);
+                        print_obj_impl(file, &o, indent + 4, true);
+                        println!("  {}", indent_str);
+                    },
+                    PropertyValue::Vector(o) => {
+                        println!("  {}(pid {:#04x}) = [", indent_str, prop.pid);
+                        for child in o {
+                            print_obj_impl(file, &child, indent + 4, true);
+                        }
+                        println!("  {}]", indent_str);
+                    },
+                    PropertyValue::Set(o) => {
+                        println!("  {}(pid {:#04x}) = (", indent_str, prop.pid);
+                        for child in o {
+                            print_obj_impl(file, &child, indent + 4, true);
+                        }
+                        println!("  {})", indent_str);
+                    },
+                    PropertyValue::Reference(o) => {
+                        println!("  {}(pid {:#04x}) ~> (", indent_str, prop.pid);
+                        print_obj_impl(file, &o, indent + 4, false);
+                        println!("  {})", indent_str);
                     }
-                    println!("  {}]", indent_str);
-                },
-                PropertyValue::Set(o) => {
-                    println!("  {}(pid {:#04x}) = (", indent_str, prop.pid);
-                    for child in o {
-                        print_obj_impl(file, &child, indent + 4);
-                    }
-                    println!("  {})", indent_str);
-                },
-                PropertyValue::Reference(o) => {
-                    println!("  {}(pid {:#04x}) ~> (", indent_str, prop.pid);
-                    println!("    {:?}", o);
-                    println!("  {})", indent_str);
                 }
             }
+            println!("{}}}", indent_str);
         }
-        println!("{}}}", indent_str);
-    }
 
-    print_obj_impl(file, obj, 0);
+
+        }
+    print_obj_impl(file, obj, 0, true);
 }
 
 fn main() {
