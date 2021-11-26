@@ -1,12 +1,11 @@
+/// file.rs
+///
 use std::io;
 use std::fs::File;
 use std::io::{Read, Seek, Cursor};
 use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-
-// use encoding::all::UTF_16LE;
-// use encoding::{DecoderTrap, Encoding};
 
 use crate::interchange_object::{InterchangeObjectDescriptor, InterchangeObjectDescriptorIter};
 use crate::properties::*;
@@ -22,18 +21,18 @@ pub struct AAFFile<F> {
 
 
 impl<F> AAFFile<F> { 
-    pub fn interchange_object(&self, path: PathBuf) -> Option<InterchangeObjectDescriptor> {
+    pub fn object(&self, path: PathBuf) -> InterchangeObjectDescriptor {
         self.f
             .entry(path)
             .map(|entry| InterchangeObjectDescriptor {
                 auid: *entry.clsid(),
                 path: entry.path().into(),
             })
-            .ok()
+        .expect("Failed to locate object by path")
     }
 
-    pub fn root_object(&self) -> Option<InterchangeObjectDescriptor> {
-        self.interchange_object(PathBuf::from("/"))
+    pub fn root_object(&self) -> InterchangeObjectDescriptor {
+        self.object(PathBuf::from("/"))
     }
 }
 
@@ -63,7 +62,7 @@ impl<F: Read + Seek> AAFFile<F> {
         weak_ref : WeakObjectReference) -> PropertyValue {
         let pid_path = self.weakref_table[weak_ref.tag as usize].to_vec();
 
-        let mut obj = self.root_object().unwrap();
+        let mut obj = self.root_object();
 
         for pid in &pid_path[0..pid_path.len()-1] {
             let p1 = self.raw_property_by_pid(&obj, *pid).unwrap();
@@ -131,9 +130,7 @@ impl<F: Read + Seek> AAFFile<F> {
             SF_STRONG_OBJECT_REF => {
                 let decoded_name = property.raw_string_value();
                 let ref_path = object.path.join(decoded_name);
-                self.interchange_object(ref_path)
-                    .map(|obj| PropertyValue::Single(obj))
-                    .expect("Failed to locate object by path")
+                PropertyValue::Single(self.object(ref_path))
             }
             SF_STRONG_OBJECT_REF_VECTOR => {
                 let decoded_name = property.raw_string_value();
@@ -142,10 +139,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let index_stream = self.f.open_stream(index_path).unwrap();
                 let vector_index = StrongVectorReferenceIndex::from_istream(index_stream);
                 let members = vector_index.member_paths(decoded_name, &object.path).into_iter()
-                    .map(|path| {
-                        self.interchange_object(path)
-                            .expect("Failed to locate index member")
-                    })
+                    .map(|path| { self.object(path)} )
                     .collect();
 
                 PropertyValue::Vector(members)
@@ -158,10 +152,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let set_index = StrongSetReferenceIndex::from_istream(index_stream);
                 let members = set_index.member_paths(decoded_name, &object.path)
                     .into_iter() 
-                    .map(|path| {
-                        self.interchange_object(path)
-                            .expect("Failed to locate set member")
-                    })
+                    .map(|path| { self.object(path)} )
                     .collect();
 
                 PropertyValue::Set(members)
@@ -387,7 +378,7 @@ mod tests {
         let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let f = AAFFile::with_cfb(comp);
-        let _root = f.root_object().unwrap();
+        let _root = f.root_object();
     }
 
     #[test]
@@ -395,7 +386,7 @@ mod tests {
         let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let comp = cfb::open(test_path).unwrap();
         let mut f = AAFFile::with_cfb(comp);
-        let root = f.root_object().unwrap();
+        let root = f.root_object();
 
         let props = f.raw_properties(&root);
 

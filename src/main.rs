@@ -96,7 +96,7 @@ fn main() {
     let mut f = AAFFile::open(test_path)
         .expect("error opening file");
     
-    let root = f.root_object().unwrap();
+    let root = f.root_object();
    
     print_object(&mut f, &root);
 }
