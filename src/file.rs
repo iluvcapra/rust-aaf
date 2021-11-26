@@ -109,7 +109,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let index_name = format!("{} index", decoded_name);
                 let index_path = object.path.join(index_name);
                 let index_stream = self.f.open_stream(index_path).unwrap();
-                let vector_index = StrongVectorReferenceIndex::from_stream(index_stream);
+                let vector_index = StrongVectorReferenceIndex::from_istream(index_stream);
                 let members = vector_index.member_paths(decoded_name, &object.path).into_iter()
                     .map(|path| {
                         self.interchange_object(path)
@@ -124,7 +124,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let index_name = format!("{} index", decoded_name);
                 let index_path = object.path.join(index_name);
                 let index_stream = self.f.open_stream(index_path).unwrap();
-                let set_index = StrongSetReferenceIndex::from_stream(index_stream);
+                let set_index = StrongSetReferenceIndex::from_istream(index_stream);
                 let members = set_index.member_paths(decoded_name, &object.path)
                     .into_iter() 
                     .map(|path| {
@@ -159,7 +159,7 @@ struct StrongVectorReferenceIndex {
 }
 
 impl StrongVectorReferenceIndex {
-    fn from_stream<T: Read+Seek>(mut stream: T) -> Self {
+    fn from_istream<T: Read+Seek>(mut stream: T) -> Self {
         let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
         let first_free_key = stream.read_u32::<LittleEndian>().unwrap();
         let last_free_key = stream.read_u32::<LittleEndian>().unwrap();
@@ -198,7 +198,7 @@ struct StrongSetReferenceIndex {
 }
 
 impl StrongSetReferenceIndex { 
-   fn from_stream<T:Read+Seek>(mut stream: T) -> Self {
+   fn from_istream<T:Read+Seek>(mut stream: T) -> Self {
         let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
         let first_free_key = stream.read_u32::<LittleEndian>().unwrap();
         let last_free_key = stream.read_u32::<LittleEndian>().unwrap();
@@ -235,7 +235,7 @@ struct WeakObjectReference {
 }
 
 impl WeakObjectReference {
-    fn from_stream<T:Read + Seek>(mut stream: T) -> Self {
+    fn from_istream<T:Read + Seek>(mut stream: T) -> Self {
         let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
         let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
         let key_size = stream.read_u8().unwrap() as OMKeySize;
@@ -256,7 +256,7 @@ struct WeakVectorReference {
 }
 
 impl WeakVectorReference {
-    fn from_stream<T: Read + Seek>(mut stream: T) -> Self {
+    fn from_istream<T: Read + Seek>(mut stream: T) -> Self {
         let entry_count = stream.read_u32::<LittleEndian>().unwrap();
         let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
         let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
