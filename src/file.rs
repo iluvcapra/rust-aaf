@@ -22,12 +22,6 @@ pub struct AAFFile<F> {
 
 
 impl<F> AAFFile<F> { 
-
-    // pub fn interchange_objects(&mut self) -> InterchangeObjectDescriptorIter<cfb::Entries> {
-    //     let entries = self.f.walk();
-    //     InterchangeObjectDescriptorIter(entries)
-    // }
-
     pub fn interchange_object(&self, path: PathBuf) -> Option<InterchangeObjectDescriptor> {
         self.f
             .entry(path)
@@ -62,7 +56,9 @@ impl<F: Read + Seek> AAFFile<F> {
         let mut ref_props_stream = f.open_stream(PathBuf::from("/referenced properties"))
             .expect("Failed to open referenced properties stream");
 
-        let _bom = ref_props_stream.read_u8().unwrap() as OMByteOrder;
+        let bom = ref_props_stream.read_u8().unwrap() as OMByteOrder;
+        assert_eq!(bom, 0x4c, "BOM is invalid");
+
         let path_count = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMPropertyCount;
         let pid_count = ref_props_stream.read_u32::<LittleEndian>().unwrap();
         
@@ -80,6 +76,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 this_path.push(this_pid);
             }
         }
+
         assert_eq!(path_count as usize, retval.len(),"Weak ref table has inconsistent length");
         retval
     }
