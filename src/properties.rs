@@ -10,7 +10,7 @@ use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
 
 use std::path::PathBuf;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, Cursor};
 
 pub const SF_DATA : OMStoredForm = 0x0082;
 pub const SF_DATA_STREAM : OMStoredForm = 0x0042;
@@ -32,19 +32,6 @@ pub enum PropertyValue {
     Single(InterchangeObjectDescriptor),
     Vector(Vec<InterchangeObjectDescriptor>),
     Set(Vec<InterchangeObjectDescriptor>)
-}
-
-impl PropertyValue {
-    pub fn properties<F:Read + Seek>(file: &mut AAFFile<F>,
-        object: &InterchangeObjectDescriptor) -> Vec<(OMPropertyId, Option<String>)> {
-        todo!()
-    }
-
-    pub fn value_for_pid<F:Read+Seek>(file: &mut AAFFile<F>, 
-        object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId) -> Option<PropertyValue> {
-        todo!()
-    }
 }
 
 impl fmt::Debug for PropertyValue {
@@ -98,8 +85,8 @@ impl fmt::Debug for RawProperty {
 
 impl RawProperty {
 
-    pub fn from_properties_stream<F>(mut stream: cfb::Stream<F>) -> Vec<RawProperty>  
-        where F: Read + Seek {
+    pub fn from_properties_istream(data : &[u8]) -> Vec<RawProperty> {
+        let mut stream = Cursor::new(data);
         let bom = stream.read_u8().unwrap() as OMByteOrder;
         assert_eq!(bom, 0x4c, "BOM is invalid");
 

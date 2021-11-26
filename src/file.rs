@@ -86,12 +86,14 @@ impl<F: Read + Seek> AAFFile<F> {
 
     pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawProperty> {
         let properties_path = object.path.join("properties");
-        let stream = self.f.open_stream(&properties_path).expect(&format!(
+        let mut stream = self.f.open_stream(&properties_path).expect(&format!(
             "Failed to open `properties` stream for object {:?}",
             object
         ));
 
-        RawProperty::from_properties_stream(stream)
+        let mut buf: Vec<u8> = vec![];
+        stream.read_to_end(&mut buf);
+        RawProperty::from_properties_istream(&mut buf)
     }
 
     pub fn raw_property_by_pid(
