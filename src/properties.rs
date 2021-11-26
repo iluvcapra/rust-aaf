@@ -4,6 +4,9 @@
 use std::fmt;
 use byteorder::{LittleEndian, ReadBytesExt};
 
+use encoding::all::UTF_16LE;
+use encoding::{DecoderTrap, Encoding};
+
 use crate::types::{OMByteOrder, OMVersion, OMPropertyId, 
     OMStoredForm, OMPropertyCount, OMPropertySize};
 use crate::interchange_object::InterchangeObjectDescriptor;
@@ -112,4 +115,11 @@ impl RawProperty {
 
         retval
     }
+    
+    pub fn raw_string_value(&self) -> String {
+        let raw_name = &self.raw_value[0..self.raw_value.len() - 2];
+        UTF_16LE.decode(raw_name, DecoderTrap::Ignore)
+            .expect("Failed to decode object reference by name")
+    }
+
 }
