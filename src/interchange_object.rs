@@ -17,7 +17,6 @@ pub struct InterchangeObjectDescriptor {
     pub path : PathBuf,
 }
 
-
 impl fmt::Debug for InterchangeObjectDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InterchangeObjectDescriptor")

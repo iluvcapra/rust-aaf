@@ -25,8 +25,7 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         for prop in file.raw_properties(obj) {
 
             // hiding these options until they're implemented
-            if prop.stored_form == SF_WEAK_OBJECT_REF ||
-                prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
+            if prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
                     prop.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
                 continue;
             }
@@ -57,6 +56,11 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
                     for child in o {
                         print_obj_impl(file, &child, indent + 4);
                     }
+                    println!("  {})", indent_str);
+                },
+                PropertyValue::Reference(o) => {
+                    println!("  {}(pid {:#04x}) ~> (", indent_str, prop.pid);
+                    println!("    {:?}", o);
                     println!("  {})", indent_str);
                 }
             }

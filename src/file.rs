@@ -58,7 +58,38 @@ impl<F: Read + Seek> AAFFile<F> {
         
         ReferencedPropertiesTable::from_stream(ref_props_stream).pid_paths
     }
+    
+    fn resolve_weak_reference(&mut self, 
+        weak_ref : WeakObjectReference) -> PropertyValue {
+        let pid_path = self.weakref_table[weak_ref.tag as usize].to_vec();
 
+        let mut obj = self.root_object().unwrap();
+
+        for pid in &pid_path[0..pid_path.len()-1] {
+            let p1 = self.raw_property_by_pid(&obj, *pid).unwrap();
+            let pv = self.resolve_property_value(&obj, &p1);
+            match pv {
+                PropertyValue::Single(sro) => {
+                    obj = sro;
+                },
+                _ => panic!("Unexpected value in ref property path")
+            }
+        }
+        
+        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len()-1]).unwrap();
+        if let PropertyValue::Set(s) = self.resolve_property_value(&obj, &pfinal) {
+            let found = s.into_iter().find(|i| {
+                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid)
+                    .unwrap().raw_value;
+                *ident == weak_ref.identification
+            }).unwrap();
+            
+            PropertyValue::Reference(found)
+        } else {
+            panic!("Failed to resolve pid path (did not end in a set)");
+        }
+    }
+    
     pub fn raw_properties(
         &mut self, 
         object: &InterchangeObjectDescriptor
@@ -136,9 +167,8 @@ impl<F: Read + Seek> AAFFile<F> {
                 PropertyValue::Set(members)
             }
             SF_WEAK_OBJECT_REF => {
-                let index_path = property.index_path(&object.path);
-                let index_stream = self.f.open_stream(index_path).unwrap();
-                todo!()
+                let weak_ref = WeakObjectReference::from_data(&property.raw_value);
+                self.resolve_weak_reference(weak_ref) 
             }
             SF_WEAK_OBJECT_REF_VECTOR => {
                 todo!()
@@ -235,6 +265,10 @@ struct WeakObjectReference {
 }
 
 impl WeakObjectReference {
+    fn from_data(data: &[u8] ) ->Self {
+        let mut cursor = Cursor::new(data);
+        Self::from_istream(cursor)
+    }
     fn from_istream<T:Read + Seek>(mut stream: T) -> Self {
         let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
         let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;

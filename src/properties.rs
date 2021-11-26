@@ -10,7 +10,7 @@ use encoding::{DecoderTrap, Encoding};
 use crate::types::{OMByteOrder, OMVersion, OMPropertyId, 
     OMStoredForm, OMPropertyCount, OMPropertySize};
 use crate::interchange_object::InterchangeObjectDescriptor;
-use crate::file::AAFFile;
+// use crate::file::AAFFile;
 
 use std::path::PathBuf;
 use std::io::{Read, Seek, Cursor};
@@ -34,7 +34,8 @@ pub enum PropertyValue {
     Stream(PathBuf),
     Single(InterchangeObjectDescriptor),
     Vector(Vec<InterchangeObjectDescriptor>),
-    Set(Vec<InterchangeObjectDescriptor>)
+    Set(Vec<InterchangeObjectDescriptor>),
+    Reference(InterchangeObjectDescriptor)
 }
 
 impl fmt::Debug for PropertyValue {
@@ -63,6 +64,11 @@ impl fmt::Debug for PropertyValue {
             Self::Set(v) => {
                 f.debug_struct("PropertyValue::Set")
                     .field("objects", v)
+                    .finish()
+            },
+            Self::Reference(v) => {
+                f.debug_struct("PropertyValue::Reference")
+                    .field("reference_object", v)
                     .finish()
             }
         }
