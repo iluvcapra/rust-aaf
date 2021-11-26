@@ -171,7 +171,21 @@ impl<F: Read + Seek> AAFFile<F> {
                 self.resolve_weak_reference(weak_ref) 
             }
             SF_WEAK_OBJECT_REF_VECTOR => {
-                todo!()
+                let decoded_name = property.raw_string_value();
+                let index_name = format!("{} index", decoded_name);
+                let index_path = object.path.join(index_name);
+                let index_stream = self.f.open_stream(index_path).unwrap();
+                let weak_vec_refs = WeakCollectionReference::from_istream(index_stream)
+                    .into_weak_references();
+                
+                let refs = weak_vec_refs.into_iter().map(|r| {
+                    if let PropertyValue::Reference(x) = self.resolve_weak_reference(r) {
+                        return x;
+                    } else { 
+                        panic!(""); 
+                    }
+                }).collect();
+                PropertyValue::ReferenceVector(refs)
             }
             SF_WEAK_OBJECT_REF_SET => {
                 todo!()
@@ -266,7 +280,7 @@ struct WeakObjectReference {
 
 impl WeakObjectReference {
     fn from_data(data: &[u8] ) ->Self {
-        let mut cursor = Cursor::new(data);
+        let cursor = Cursor::new(data);
         Self::from_istream(cursor)
     }
     fn from_istream<T:Read + Seek>(mut stream: T) -> Self {
@@ -281,27 +295,49 @@ impl WeakObjectReference {
     }
 }
 
-struct WeakVectorReference {
+struct WeakCollectionReference {
     entry_count: u32,
     tag: OMPropertyTag,
     key_pid: OMPropertyId,
     key_size: OMKeySize,
-    identification : Vec<u8>
+    identification_list : Vec<Vec<u8>>
 }
 
-impl WeakVectorReference {
+impl WeakCollectionReference {
     fn from_istream<T: Read + Seek>(mut stream: T) -> Self {
         let entry_count = stream.read_u32::<LittleEndian>().unwrap();
         let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
         let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
         let key_size = stream.read_u8().unwrap() as OMKeySize;
-        let mut identification = vec![ 0u8; key_size as usize ];
-        stream.read_exact(&mut identification)
-            .expect("Failed to read all WeakVectorReference fields");
 
-        WeakVectorReference { entry_count , tag, key_pid, key_size, identification }
+        let mut identification_list = vec![];
+
+        for _ in 0..entry_count {
+            let mut identification = vec![ 0u8; key_size as usize ];
+            stream.read_exact(&mut identification)
+                .expect("Failed to read all WeakVectorReference fields");
+
+            identification_list.push(identification);
+        }
+        
+        WeakCollectionReference { entry_count , tag, key_pid, key_size, identification_list }
+    }
+
+    fn into_weak_references(self) -> Vec<WeakObjectReference> {
+        let mut retval = vec![];
+        for ident in self.identification_list.into_iter() {
+            retval.push( WeakObjectReference {
+                tag: self.tag,
+                key_pid: self.key_pid,
+                key_size: self.key_size,
+                identification: ident
+            })
+        }
+        retval
     }
 }
+
+
 
 struct ReferencedPropertiesTable {
     byte_order: OMByteOrder,

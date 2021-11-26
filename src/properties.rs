@@ -35,7 +35,9 @@ pub enum PropertyValue {
     Single(InterchangeObjectDescriptor),
     Vector(Vec<InterchangeObjectDescriptor>),
     Set(Vec<InterchangeObjectDescriptor>),
-    Reference(InterchangeObjectDescriptor)
+    Reference(InterchangeObjectDescriptor),
+    ReferenceVector(Vec<InterchangeObjectDescriptor>),
+    ReferenceSet(Vec<InterchangeObjectDescriptor>)
 }
 
 impl fmt::Debug for PropertyValue {
@@ -69,6 +71,16 @@ impl fmt::Debug for PropertyValue {
             Self::Reference(v) => {
                 f.debug_struct("PropertyValue::Reference")
                     .field("reference_object", v)
+                    .finish()
+            },
+            Self::ReferenceVector(v) => {
+                f.debug_struct("PropertyValue::ReferenceVector")
+                    .field("referenced_objects", v)
+                    .finish()
+            },
+            Self::ReferenceSet(v) => {
+                f.debug_struct("PropertyValue::ReferenceSet")
+                    .field("referenced_objects", v)
                     .finish()
             }
         }

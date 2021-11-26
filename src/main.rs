@@ -21,13 +21,12 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         
         let indent_str = String::from_utf8(vec![b' '; indent]).unwrap();
             
-        println!("{}Object({:?}) {{",indent_str, obj.path);
         if descend {
+            println!("{}Object({:?}) {{",indent_str, obj.path);
             for prop in file.raw_properties(obj) {
 
                 // hiding these options until they're implemented
-                if prop.stored_form == SF_WEAK_OBJECT_REF_SET ||
-                        prop.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
+                if prop.stored_form == SF_WEAK_OBJECT_REF_SET {
                     continue;
                 }
 
@@ -60,17 +59,29 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
                         println!("  {})", indent_str);
                     },
                     PropertyValue::Reference(o) => {
-                        println!("  {}(pid {:#04x}) ~> (", indent_str, prop.pid);
-                        print_obj_impl(file, &o, indent + 4, false);
-                        println!("  {})", indent_str);
+                        println!("  {}(pid {:#04x}) ~> Ref({:?})", indent_str, prop.pid, o.path);
+                    },
+                    PropertyValue::ReferenceVector(o) => {
+                        println!("  {}(pid {:#04x}) ~> [", indent_str, prop.pid);
+                        for child in o {
+                            println!("    {}Ref({:?})", indent_str, child.path);
+                        }
+                        println!("  {}]", indent_str);
+                    },
+                    PropertyValue::ReferenceSet(o) => {
+                        println!("  {}(pid {:#04x}) ~> [", indent_str, prop.pid);
+                        for child in o {
+                            println!("    {}Ref({:?})", indent_str, child.path);
+                        }
+                        println!("  {}]", indent_str);
                     }
                 }
             }
             println!("{}}}", indent_str);
+        } else {
+            println!("{}Object({:?})",indent_str, obj.path);
         }
-
-
-        }
+    }
     print_obj_impl(file, obj, 0, true);
 }
 
