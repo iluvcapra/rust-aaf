@@ -92,7 +92,7 @@ impl<F: Read + Seek> AAFFile<F> {
         ));
 
         let mut buf: Vec<u8> = vec![];
-        stream.read_to_end(&mut buf);
+        stream.read_to_end(&mut buf).expect("Error reading properties IStream");
         RawProperty::from_properties_istream(&mut buf)
     }
 
