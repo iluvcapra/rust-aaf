@@ -24,12 +24,6 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         if descend {
             println!("{}Object({:?}) {{",indent_str, obj.path);
             for prop in file.raw_properties(obj) {
-
-                // hiding these options until they're implemented
-                if prop.stored_form == SF_WEAK_OBJECT_REF_SET {
-                    continue;
-                }
-
                 let val = file.resolve_property_value(obj, &prop);
 
                 match val {

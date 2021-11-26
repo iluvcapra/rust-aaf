@@ -170,7 +170,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let weak_ref = WeakObjectReference::from_data(&property.raw_value);
                 self.resolve_weak_reference(weak_ref) 
             }
-            SF_WEAK_OBJECT_REF_VECTOR => {
+            SF_WEAK_OBJECT_REF_VECTOR | SF_WEAK_OBJECT_REF_SET => {
                 let decoded_name = property.raw_string_value();
                 let index_name = format!("{} index", decoded_name);
                 let index_path = object.path.join(index_name);
@@ -185,11 +185,12 @@ impl<F: Read + Seek> AAFFile<F> {
                         panic!(""); 
                     }
                 }).collect();
-                PropertyValue::ReferenceVector(refs)
-            }
-            SF_WEAK_OBJECT_REF_SET => {
-                todo!()
-            }
+                if property.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
+                    PropertyValue::ReferenceVector(refs)
+                } else {
+                    PropertyValue::ReferenceSet(refs)
+                }
+            } 
             _ => panic!("Unrecgonized stored form found."),
         }
     }
