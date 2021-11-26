@@ -23,10 +23,10 @@ pub struct AAFFile<F> {
 
 impl<F> AAFFile<F> { 
 
-    pub fn interchange_objects(&mut self) -> InterchangeObjectDescriptorIter<cfb::Entries> {
-        let entries = self.f.walk();
-        InterchangeObjectDescriptorIter(entries)
-    }
+    // pub fn interchange_objects(&mut self) -> InterchangeObjectDescriptorIter<cfb::Entries> {
+    //     let entries = self.f.walk();
+    //     InterchangeObjectDescriptorIter(entries)
+    // }
 
     pub fn interchange_object(&self, path: PathBuf) -> Option<InterchangeObjectDescriptor> {
         self.f
@@ -84,30 +84,22 @@ impl<F: Read + Seek> AAFFile<F> {
         retval
     }
 
-    pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawPropertyValue> {
+    pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawProperty> {
         let properties_path = object.path.join("properties");
         let stream = self.f.open_stream(&properties_path).expect(&format!(
             "Failed to open `properties` stream for object {:?}",
             object
         ));
 
-        RawPropertyValue::from_properties_stream(stream)
+        RawProperty::from_properties_stream(stream)
     }
 
-    pub fn property_by_pid(
+    pub fn raw_property_by_pid(
         &mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
-    ) -> Option<RawPropertyValue> {
+    ) -> Option<RawProperty> {
         self.raw_properties(object).into_iter().find(|p| p.pid == pid)
-    }
-
-    fn get_raw_property_value(
-        &mut self,
-        object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId,
-    ) -> Box<Vec<u8>> {
-        self.property_by_pid(&object, pid).unwrap().value
     }
 
     /// returns first free key, last free key, key list
@@ -164,9 +156,10 @@ impl<F: Read + Seek> AAFFile<F> {
     pub fn resolve_property_value(
         &mut self,
         object: &InterchangeObjectDescriptor,
-        property: &RawPropertyValue,
+        property: &RawProperty,
     ) -> PropertyValue {
-        let raw_data = Self::get_raw_property_value(self, object, property.pid);
+        let raw_data = Self::raw_property_by_pid(self, object, property.pid)
+            .unwrap().value;
 
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
@@ -279,16 +272,16 @@ mod tests {
         let _root = f.root_object().unwrap();
     }
 
-    #[test]
-    fn test_obj_iterator() {
-        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
-        let comp = cfb::open(test_path).unwrap();
-        let mut f = AAFFile::with_cfb(comp);
+    // #[test]
+    // fn test_obj_iterator() {
+    //     let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+    //     let comp = cfb::open(test_path).unwrap();
+    //     let mut f = AAFFile::with_cfb(comp);
 
-        for i in f.interchange_objects() {
-            assert!(i.auid != Uuid::nil());
-        }
-    }
+    //     for i in f.interchange_objects() {
+    //         assert!(i.auid != Uuid::nil());
+    //     }
+    // }
 
     #[test]
     fn test_get_properties() {
@@ -301,7 +294,7 @@ mod tests {
 
         assert_eq!(props.len(), 2, "Incorrect number of properties detected");
 
-        let _p1 = f.property_by_pid(&root, 0x01).unwrap();
-        let _p2 = f.property_by_pid(&root, 0x02).unwrap();
+        let _p1 = f.raw_property_by_pid(&root, 0x01).unwrap();
+        let _p2 = f.raw_property_by_pid(&root, 0x02).unwrap();
     }
 }

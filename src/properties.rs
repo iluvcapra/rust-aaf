@@ -80,15 +80,15 @@ impl fmt::Debug for PropertyValue {
 }
 
 
-pub struct RawPropertyValue {
+pub struct RawProperty {
     pub pid : OMPropertyId,
     pub stored_form: OMStoredForm,
     pub value: Box<Vec<u8>>
 }
 
-impl fmt::Debug for RawPropertyValue {
+impl fmt::Debug for RawProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PropertyDescriptor")
+        f.debug_struct("RawProperty")
             .field("pid", &self.pid)
             .field("stored_form",&self.stored_form)
             .field("len(value)", &self.value.len())
@@ -96,9 +96,9 @@ impl fmt::Debug for RawPropertyValue {
     }
 }
 
-impl RawPropertyValue {
+impl RawProperty {
 
-    pub fn from_properties_stream<F>(mut stream: cfb::Stream<F>) -> Vec<RawPropertyValue>  
+    pub fn from_properties_stream<F>(mut stream: cfb::Stream<F>) -> Vec<RawProperty>  
         where F: Read + Seek {
         let bom = stream.read_u8().unwrap() as OMByteOrder;
         assert_eq!(bom, 0x4c, "BOM is invalid");
@@ -115,12 +115,12 @@ impl RawPropertyValue {
             prop_headers.push((pid,stored_form,size));
         }
         
-        let mut retval : Vec<RawPropertyValue> = Vec::with_capacity(property_count as usize);
+        let mut retval : Vec<RawProperty> = Vec::with_capacity(property_count as usize);
 
         for (pid, stored_form, size) in prop_headers {
             let mut value = vec![0; size as usize];
             stream.read_exact(&mut value).unwrap();
-            let prop = RawPropertyValue { pid, stored_form, value: Box::new(value)} ;
+            let prop = RawProperty { pid, stored_form, value: Box::new(value)} ;
             retval.push(prop);
         }
 
