@@ -149,7 +149,8 @@ impl<F: Read + Seek> AAFFile<F> {
         let pid = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
         let key_size = cursor.read_u8().unwrap() as OMKeySize;
         let mut identification = vec![ 0u8 ; key_size as usize];
-        cursor.read_exact(&mut identification);
+        cursor.read_exact(&mut identification)
+            .expect("Failed to read reference identification length");
         
         todo!() 
 
@@ -273,17 +274,6 @@ mod tests {
         let f = AAFFile::with_cfb(comp);
         let _root = f.root_object().unwrap();
     }
-
-    // #[test]
-    // fn test_obj_iterator() {
-    //     let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
-    //     let comp = cfb::open(test_path).unwrap();
-    //     let mut f = AAFFile::with_cfb(comp);
-
-    //     for i in f.interchange_objects() {
-    //         assert!(i.auid != Uuid::nil());
-    //     }
-    // }
 
     #[test]
     fn test_get_properties() {

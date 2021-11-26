@@ -78,13 +78,12 @@ impl fmt::Debug for RawProperty {
         f.debug_struct("RawProperty")
             .field("pid", &self.pid)
             .field("stored_form",&self.stored_form)
-            .field("len(value)", &self.raw_value.len())
+            .field("len(raw_value)", &self.raw_value.len())
             .finish()
     }
 }
 
 impl RawProperty {
-
     pub fn from_properties_istream(data : &[u8]) -> Vec<RawProperty> {
         let mut stream = Cursor::new(data);
         let bom = stream.read_u8().unwrap() as OMByteOrder;
