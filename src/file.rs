@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use encoding::all::UTF_16LE;
-use encoding::{DecoderTrap, Encoding};
+// use encoding::all::UTF_16LE;
+// use encoding::{DecoderTrap, Encoding};
 
 use crate::interchange_object::{InterchangeObjectDescriptor, InterchangeObjectDescriptorIter};
 use crate::properties::*;
@@ -53,32 +53,10 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     fn weak_refs_table(f: &mut cfb::CompoundFile<F>) -> Vec<Vec<OMPropertyId>> {
-        let mut ref_props_stream = f.open_stream(PathBuf::from("/referenced properties"))
+        let ref_props_stream = f.open_stream(PathBuf::from("/referenced properties"))
             .expect("Failed to open referenced properties stream");
-
-        let bom = ref_props_stream.read_u8().unwrap() as OMByteOrder;
-        assert_eq!(bom, 0x4c, "BOM is invalid");
-
-        let path_count = ref_props_stream.read_u16::<LittleEndian>().unwrap() as OMPropertyCount;
-        let pid_count = ref_props_stream.read_u32::<LittleEndian>().unwrap();
         
-        let mut retval : Vec<Vec<OMPropertyId>> = vec![];
-        let mut this_path : Vec<OMPropertyId> = vec![];
-
-        for _ in 0..pid_count {
-            let this_pid = ref_props_stream.read_u16::<LittleEndian>()
-                .unwrap() as OMPropertyId;
-
-            if this_pid == 0x0000u16 {
-                retval.push(this_path);
-                this_path = vec![];
-            } else {
-                this_path.push(this_pid);
-            }
-        }
-
-        assert_eq!(path_count as usize, retval.len(),"Weak ref table has inconsistent length");
-        retval
+        ReferencedPropertiesTable::from_stream(ref_props_stream).pid_paths
     }
 
     pub fn raw_properties(
@@ -103,19 +81,6 @@ impl<F: Read + Seek> AAFFile<F> {
     ) -> Option<RawProperty> {
         self.raw_properties(object).into_iter().find(|p| p.pid == pid)
     }
-
-    // fn resolve_weak_reference(&mut self, prop_data: &[u8]) -> InterchangeObjectDescriptor {
-
-    //     let mut cursor = Cursor::new(prop_data);
-    //     let tag = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
-    //     let pid = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
-    //     let key_size = cursor.read_u8().unwrap() as OMKeySize;
-    //     let mut identification = vec![ 0u8 ; key_size as usize];
-    //     cursor.read_exact(&mut identification)
-    //         .expect("Failed to read reference identification length");
-        
-    //     todo!() 
-    // }
 
     pub fn resolve_property_value(
         &mut self,
@@ -171,6 +136,8 @@ impl<F: Read + Seek> AAFFile<F> {
                 PropertyValue::Set(members)
             }
             SF_WEAK_OBJECT_REF => {
+                let index_path = property.index_path(&object.path);
+                let index_stream = self.f.open_stream(index_path).unwrap();
                 todo!()
             }
             SF_WEAK_OBJECT_REF_VECTOR => {
@@ -264,9 +231,79 @@ struct WeakObjectReference {
     tag: OMPropertyTag,
     key_pid: OMPropertyId,
     key_size: OMKeySize,
-    key: Vec<u8>
+    identification: Vec<u8>
 }
 
+impl WeakObjectReference {
+    fn from_stream<T:Read + Seek>(mut stream: T) -> Self {
+        let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
+        let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+        let key_size = stream.read_u8().unwrap() as OMKeySize;
+        let mut identification = vec![ 0u8 ; key_size as usize];
+        stream.read_exact(&mut identification)
+            .expect("Failed to read reference identification length");
+        
+        WeakObjectReference { tag, key_pid, key_size, identification }
+    }
+}
+
+struct WeakVectorReference {
+    entry_count: u32,
+    tag: OMPropertyTag,
+    key_pid: OMPropertyId,
+    key_size: OMKeySize,
+    identification : Vec<u8>
+}
+
+impl WeakVectorReference {
+    fn from_stream<T: Read + Seek>(mut stream: T) -> Self {
+        let entry_count = stream.read_u32::<LittleEndian>().unwrap();
+        let tag = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
+        let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+        let key_size = stream.read_u8().unwrap() as OMKeySize;
+        let mut identification = vec![ 0u8; key_size as usize ];
+        stream.read_exact(&mut identification)
+            .expect("Failed to read all WeakVectorReference fields");
+
+        WeakVectorReference { entry_count , tag, key_pid, key_size, identification }
+    }
+}
+
+struct ReferencedPropertiesTable {
+    byte_order: OMByteOrder,
+    path_count: OMPropertyCount,
+    pid_count: u32,
+    pid_paths: Vec<Vec<OMPropertyId>>
+}
+
+impl ReferencedPropertiesTable {
+    pub fn from_stream<T: Read + Seek>(mut stream: T) -> Self {
+        let byte_order = stream.read_u8().unwrap() as OMByteOrder;
+        assert_eq!(byte_order, 0x4c, "BOM is invalid");
+
+        let path_count = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyCount;
+        let pid_count = stream.read_u32::<LittleEndian>().unwrap();
+        
+        let mut pid_paths : Vec<Vec<OMPropertyId>> = vec![];
+        let mut this_path : Vec<OMPropertyId> = vec![];
+
+        for _ in 0..pid_count {
+            let this_pid = stream.read_u16::<LittleEndian>()
+                .unwrap() as OMPropertyId;
+
+            if this_pid == 0x0000u16 {
+                pid_paths.push(this_path);
+                this_path = vec![];
+            } else {
+                this_path.push(this_pid);
+            }
+        }
+
+        assert_eq!(path_count as usize, pid_paths.len(),"Weak ref table has inconsistent length");
+        
+        Self { byte_order, path_count, pid_count, pid_paths }
+    }
+}
 
 
 #[cfg(test)]

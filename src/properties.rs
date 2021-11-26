@@ -122,4 +122,10 @@ impl RawProperty {
             .expect("Failed to decode object reference by name")
     }
 
+    pub fn index_path(&self, obj_path: &PathBuf) -> PathBuf {
+        let decoded_name = self.raw_string_value();
+        let index_name = format!("{} index", decoded_name);
+        obj_path.join(index_name)
+    }
+
 }
