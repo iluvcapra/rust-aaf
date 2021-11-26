@@ -1,6 +1,9 @@
 extern crate cfb;
 extern crate encoding;
 
+use encoding::all::UTF_16LE;
+use encoding::{Encoding, DecoderTrap};
+
 mod interchange_object;
 mod properties;
 mod types;
@@ -28,8 +31,17 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
 
                 match val {
                     PropertyValue::Data(v) => {
-                        println!("  {}(pid {:#04x}) = len({:?})", indent_str, prop.pid, v.len()); 
-                    },
+                        match prop.pid {
+                            0x06 | 0x1b02 => {
+                                let sval = UTF_16LE.decode(&*v, DecoderTrap::Strict)
+                                    .unwrap_or(String::from("(Undecodable)"));
+                                println!("  {}(pid {:#04x}) = string({})", indent_str, prop.pid, sval); 
+                            },
+                            _ => { 
+                                println!("  {}(pid {:#04x}) = len({:?})", indent_str, prop.pid, v.len()); 
+                            }
+                        }
+                    }
                     PropertyValue::Stream(p) => {
                         println!("  {}(pid {:#04x}) = stream({:?})", indent_str, prop.pid, p);
                     },
