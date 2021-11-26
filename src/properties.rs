@@ -70,7 +70,7 @@ impl fmt::Debug for PropertyValue {
 pub struct RawProperty {
     pub pid : OMPropertyId,
     pub stored_form: OMStoredForm,
-    pub value: Box<Vec<u8>>
+    pub raw_value: Box<Vec<u8>>
 }
 
 impl fmt::Debug for RawProperty {
@@ -78,7 +78,7 @@ impl fmt::Debug for RawProperty {
         f.debug_struct("RawProperty")
             .field("pid", &self.pid)
             .field("stored_form",&self.stored_form)
-            .field("len(value)", &self.value.len())
+            .field("len(value)", &self.raw_value.len())
             .finish()
     }
 }
@@ -107,12 +107,10 @@ impl RawProperty {
         for (pid, stored_form, size) in prop_headers {
             let mut value = vec![0; size as usize];
             stream.read_exact(&mut value).unwrap();
-            let prop = RawProperty { pid, stored_form, value: Box::new(value)} ;
+            let prop = RawProperty { pid, stored_form, raw_value: Box::new(value)} ;
             retval.push(prop);
         }
 
         retval
     }
-
-
 }

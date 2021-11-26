@@ -161,7 +161,7 @@ impl<F: Read + Seek> AAFFile<F> {
         property: &RawProperty,
     ) -> PropertyValue {
         let raw_data = Self::raw_property_by_pid(self, object, property.pid)
-            .unwrap().value;
+            .unwrap().raw_value;
 
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
