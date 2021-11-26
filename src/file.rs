@@ -55,16 +55,7 @@ impl<F: Read + Seek> AAFFile<F> {
     /// A new `AAFFile` with a `cfb::CompoundFile`
     pub fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
-         Self { f: cfb , weakref_table: weakref_table }
-    }
-    
-    pub fn raw_properties(&mut self, 
-        object: &InterchangeObjectDescriptor) 
-        -> Vec<RawPropertyValue> {
-            let prop_path = object.path.join("properties");
-            let mut stream = self.f.open_stream(prop_path)
-                .expect("Failed to locate properties IStream");
-        RawPropertyValue::from_properties_stream(stream)
+        Self { f: cfb , weakref_table: weakref_table }
     }
 
     fn weak_refs_table(f: &mut cfb::CompoundFile<F>) -> Vec<Vec<OMPropertyId>> {
@@ -91,6 +82,32 @@ impl<F: Read + Seek> AAFFile<F> {
         }
         assert_eq!(path_count as usize, retval.len(),"Weak ref table has inconsistent length");
         retval
+    }
+
+    pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawPropertyValue> {
+        let properties_path = object.path.join("properties");
+        let stream = self.f.open_stream(&properties_path).expect(&format!(
+            "Failed to open `properties` stream for object {:?}",
+            object
+        ));
+
+        RawPropertyValue::from_properties_stream(stream)
+    }
+
+    pub fn property_by_pid(
+        &mut self,
+        object: &InterchangeObjectDescriptor,
+        pid: OMPropertyId,
+    ) -> Option<RawPropertyValue> {
+        self.raw_properties(object).into_iter().find(|p| p.pid == pid)
+    }
+
+    fn get_raw_property_value(
+        &mut self,
+        object: &InterchangeObjectDescriptor,
+        pid: OMPropertyId,
+    ) -> Box<Vec<u8>> {
+        self.property_by_pid(&object, pid).unwrap().value
     }
 
     /// returns first free key, last free key, key list
@@ -147,9 +164,9 @@ impl<F: Read + Seek> AAFFile<F> {
     pub fn resolve_property_value(
         &mut self,
         object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId,
-    ) -> PropertyValue { 
-        let raw_data = RawPropertyValue::raw_property_value(&mut self, object, pid);
+        property: &RawPropertyValue,
+    ) -> PropertyValue {
+        let raw_data = Self::get_raw_property_value(self, object, property.pid);
 
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
