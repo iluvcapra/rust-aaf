@@ -81,7 +81,10 @@ impl<F: Read + Seek> AAFFile<F> {
         retval
     }
 
-    pub fn raw_properties(&mut self, object: &InterchangeObjectDescriptor) -> Vec<RawProperty> {
+    pub fn raw_properties(
+        &mut self, 
+        object: &InterchangeObjectDescriptor
+        ) -> Vec<RawProperty> {
         let properties_path = object.path.join("properties");
         let mut stream = self.f.open_stream(&properties_path).expect(&format!(
             "Failed to open `properties` stream for object {:?}",
@@ -102,56 +105,55 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     /// returns first free key, last free key, key list
-    fn read_strong_vector_index(mut stream: cfb::Stream<F>) -> (u32, u32, Vec<u32>) {
-        let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
-        let first_free = stream.read_u32::<LittleEndian>().unwrap();
-        let last_free = stream.read_u32::<LittleEndian>().unwrap();
+    // fn read_strong_vector_index(mut stream: cfb::Stream<F>) -> (u32, u32, Vec<u32>) {
+    //     let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
+    //     let first_free = stream.read_u32::<LittleEndian>().unwrap();
+    //     let last_free = stream.read_u32::<LittleEndian>().unwrap();
 
-        let mut key_list = vec![0u32; entry_count];
-        for i in 0..entry_count {
-            let entry = stream.read_u32::<LittleEndian>().unwrap();
-            key_list[i] = entry;
-        }
+    //     let mut key_list = vec![0u32; entry_count];
+    //     for i in 0..entry_count {
+    //         let entry = stream.read_u32::<LittleEndian>().unwrap();
+    //         key_list[i] = entry;
+    //     }
 
-        (first_free, last_free, key_list)
-    }
+    //     (first_free, last_free, key_list)
+    // }
 
     /// return first free key, last free key, key_pid, key_list
     /// key list is a Vec of (local_key, ref_count, global_ident>)
-    fn read_strong_set_index(
-        mut stream: cfb::Stream<F>,
-    ) -> (u32, u32, OMPropertyId, Vec<(u32, u32, Box<Vec<u8>>)>) {
-        let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
-        let first_free = stream.read_u32::<LittleEndian>().unwrap();
-        let last_free = stream.read_u32::<LittleEndian>().unwrap();
-        let ident_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
-        let ident_size = stream.read_u8().unwrap() as OMKeySize;
+    // fn read_strong_set_index(
+    //     mut stream: cfb::Stream<F>,
+    // ) -> (u32, u32, OMPropertyId, Vec<(u32, u32, Box<Vec<u8>>)>) {
+    //     let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
+    //     let first_free = stream.read_u32::<LittleEndian>().unwrap();
+    //     let last_free = stream.read_u32::<LittleEndian>().unwrap();
+    //     let ident_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+    //     let ident_size = stream.read_u8().unwrap() as OMKeySize;
 
-        let mut key_list: Vec<(u32, u32, Box<Vec<u8>>)> = vec![];
-        for _ in 0..entry_count {
-            let local_key = stream.read_u32::<LittleEndian>().unwrap();
-            let ref_count = stream.read_u32::<LittleEndian>().unwrap();
-            let mut buffer = vec![0; ident_size as usize];
-            stream.read_exact(&mut buffer).unwrap();
-            key_list.push((local_key, ref_count, Box::new(buffer)));
-        }
+    //     let mut key_list: Vec<(u32, u32, Box<Vec<u8>>)> = vec![];
+    //     for _ in 0..entry_count {
+    //         let local_key = stream.read_u32::<LittleEndian>().unwrap();
+    //         let ref_count = stream.read_u32::<LittleEndian>().unwrap();
+    //         let mut buffer = vec![0; ident_size as usize];
+    //         stream.read_exact(&mut buffer).unwrap();
+    //         key_list.push((local_key, ref_count, Box::new(buffer)));
+    //     }
 
-        (first_free, last_free, ident_pid, key_list)
-    } 
+    //     (first_free, last_free, ident_pid, key_list)
+    // } 
 
-    fn resolve_weak_reference(&mut self, prop_data: &[u8]) -> InterchangeObjectDescriptor {
+    // fn resolve_weak_reference(&mut self, prop_data: &[u8]) -> InterchangeObjectDescriptor {
 
-        let mut cursor = Cursor::new(prop_data);
-        let tag = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
-        let pid = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
-        let key_size = cursor.read_u8().unwrap() as OMKeySize;
-        let mut identification = vec![ 0u8 ; key_size as usize];
-        cursor.read_exact(&mut identification)
-            .expect("Failed to read reference identification length");
+    //     let mut cursor = Cursor::new(prop_data);
+    //     let tag = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyTag;
+    //     let pid = cursor.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+    //     let key_size = cursor.read_u8().unwrap() as OMKeySize;
+    //     let mut identification = vec![ 0u8 ; key_size as usize];
+    //     cursor.read_exact(&mut identification)
+    //         .expect("Failed to read reference identification length");
         
-        todo!() 
-
-    }
+    //     todo!() 
+    // }
 
     pub fn resolve_property_value(
         &mut self,
@@ -258,6 +260,73 @@ impl<F: Read + Seek> AAFFile<F> {
         }
     }
 }
+
+struct StrongVectorReferenceIndex {
+    entry_count: u32,
+    first_free_key: u32,
+    last_free_key: u32,
+    local_keys: Vec<u32>
+}
+
+impl StrongVectorReferenceIndex {
+    fn from_stream<T: Read+Seek>(stream: T) -> Self {
+        let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
+        let first_free_key = stream.read_u32::<LittleEndian>().unwrap();
+        let last_free_key = stream.read_u32::<LittleEndian>().unwrap();
+
+        let mut local_keys = vec![0u32; entry_count];
+        for i in 0..entry_count {
+            let entry = stream.read_u32::<LittleEndian>().unwrap();
+            local_keys[i] = entry;
+        }
+        StrongVectorReferenceIndex { entry_count: entry_count as u32, first_free_key, last_free_key, local_keys }
+    }
+}
+
+struct StrongSetReferenceIndexEntry {
+    local_key: u32,
+    reference_count: u32,
+    identification: Vec<u8>
+}
+
+struct StrongSetReferenceIndex {
+    entry_count: u32,
+    first_free_key: u32,
+    last_free_key: u32,
+    key_pid: OMPropertyId,
+    key_size: OMKeySize,
+    local_keys: Vec<StrongSetReferenceIndexEntry>
+}
+
+impl StrongSetReferenceIndex {
+    fn from_stream<T:Read+Seek>(stream: T) -> Self {
+        let entry_count = stream.read_u32::<LittleEndian>().unwrap() as usize;
+        let first_free_key = stream.read_u32::<LittleEndian>().unwrap();
+        let last_free_key = stream.read_u32::<LittleEndian>().unwrap();
+        let key_pid = stream.read_u16::<LittleEndian>().unwrap() as OMPropertyId;
+        let key_size = stream.read_u8().unwrap() as OMKeySize;
+
+        let mut local_keys: Vec<StrongSetReferenceIndexEntry> = vec![];
+        for _ in 0..entry_count {
+            let local_key = stream.read_u32::<LittleEndian>().unwrap();
+            let reference_count = stream.read_u32::<LittleEndian>().unwrap();
+            let mut identification = vec![0; key_size as usize];
+            stream.read_exact(&mut identification).unwrap();
+            let obj = StrongSetReferenceIndexEntry { local_key, reference_count, identification };
+            local_keys.push(obj);
+        }
+        Self { entry_count: entry_count as u32, first_free_key, last_free_key, key_pid, key_size, local_keys }
+    }
+}
+
+struct WeakObjectReference {
+    tag: OMPropertyTag,
+    key_pid: OMPropertyId,
+    key_size: OMKeySize,
+    key: Vec<u8>
+}
+
+
 
 #[cfg(test)]
 mod tests {
