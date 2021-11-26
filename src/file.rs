@@ -65,7 +65,7 @@ impl<F: Read + Seek> AAFFile<F> {
         let mut obj = self.root_object();
 
         for pid in &pid_path[0..pid_path.len()-1] {
-            let p1 = self.raw_property_by_pid(&obj, *pid).unwrap();
+            let p1 = self.raw_property_by_pid(&obj, *pid);
             let pv = self.resolve_property_value(&obj, &p1);
             match pv {
                 PropertyValue::Single(sro) => {
@@ -75,11 +75,10 @@ impl<F: Read + Seek> AAFFile<F> {
             }
         }
         
-        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len()-1]).unwrap();
+        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len()-1]);
         if let PropertyValue::Set(s) = self.resolve_property_value(&obj, &pfinal) {
             let found = s.into_iter().find(|i| {
-                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid)
-                    .unwrap().raw_value;
+                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid).raw_value;
                 *ident == weak_ref.identification
             }).unwrap();
             
@@ -108,8 +107,11 @@ impl<F: Read + Seek> AAFFile<F> {
         &mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
-    ) -> Option<RawProperty> {
-        self.raw_properties(object).into_iter().find(|p| p.pid == pid)
+    ) -> RawProperty {
+        self.raw_properties(object).into_iter()
+            .find(|p| p.pid == pid)
+            .take()
+            .unwrap()
     }
 
     pub fn resolve_property_value(
@@ -117,8 +119,7 @@ impl<F: Read + Seek> AAFFile<F> {
         object: &InterchangeObjectDescriptor,
         property: &RawProperty,
     ) -> PropertyValue {
-        let raw_data = Self::raw_property_by_pid(self, object, property.pid)
-            .unwrap().raw_value;
+        let raw_data = Self::raw_property_by_pid(self, object, property.pid).raw_value;
 
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
@@ -392,7 +393,7 @@ mod tests {
 
         assert_eq!(props.len(), 2, "Incorrect number of properties detected");
 
-        let _p1 = f.raw_property_by_pid(&root, 0x01).unwrap();
-        let _p2 = f.raw_property_by_pid(&root, 0x02).unwrap();
+        let _p1 = f.raw_property_by_pid(&root, 0x01);
+        let _p2 = f.raw_property_by_pid(&root, 0x02);
     }
 }
