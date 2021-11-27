@@ -1,9 +1,9 @@
-use std::fs::File;
 /// file.rs
 ///
 use std::io;
 use std::io::{Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
+use std::fs::File;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use cfb;
@@ -68,7 +68,7 @@ impl<F: Read + Seek> AAFFile<F> {
     /// A new `AAFFile` with a `cfb::CompoundFile`
     fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
-        let session = Session::new();
+        let session = Session { };
         Self {
             f: cfb,
             weakref_table: weakref_table,

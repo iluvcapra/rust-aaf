@@ -9,7 +9,7 @@ pub trait InterchangeObject {
 }
 
 
-pub struct InterchangeObjectDescriptorIter<I>(pub I);
+// pub struct InterchangeObjectDescriptorIter<I>(pub I);
 
 
 pub struct InterchangeObjectDescriptor {
@@ -26,22 +26,22 @@ impl fmt::Debug for InterchangeObjectDescriptor {
     }
 }
 
-impl<I: Iterator<Item=cfb::Entry>> Iterator for InterchangeObjectDescriptorIter<I> {    
-    type Item = InterchangeObjectDescriptor;
+// impl<I: Iterator<Item=cfb::Entry>> Iterator for InterchangeObjectDescriptorIter<I> {    
+//     type Item = InterchangeObjectDescriptor;
     
-    fn next(&mut self) -> Option<InterchangeObjectDescriptor> {
-        loop {
-            let next = self.0.next();
-            match next {
-                Some(elem) if elem.is_storage() => {
-                    return Some(InterchangeObjectDescriptor { auid: *elem.clsid(), 
-                        path: elem.path().into()})
-                },               
-                Some(_) => (),
-                None => return None
-            }
-        }
-    }
-}
+//     fn next(&mut self) -> Option<InterchangeObjectDescriptor> {
+//         loop {
+//             let next = self.0.next();
+//             match next {
+//                 Some(elem) if elem.is_storage() => {
+//                     return Some(InterchangeObjectDescriptor { auid: *elem.clsid(), 
+//                         path: elem.path().into()})
+//                 },               
+//                 Some(_) => (),
+//                 None => return None
+//             }
+//         }
+//     }
+// }
 
 
