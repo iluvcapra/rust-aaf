@@ -12,6 +12,12 @@ use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::session::Session;
 use crate::types::{OMByteOrder, OMKeySize, OMPropertyCount, OMPropertyId, OMPropertyTag};
+use crate::meta::MetaDictionary;
+
+const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
+const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
+// AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
+
 
 /// An AAF file.
 pub struct AAFFile<F> {
@@ -62,6 +68,10 @@ impl<F: Read + Seek> AAFFile<F> {
         self.resolve_property_value(object, &prop)
     }
 
+    pub fn meta_dictionary(&mut self) -> MetaDictionary {
+        todo!()
+    }
+
     /// A new `AAFFile` with a `cfb::CompoundFile`
     fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
@@ -90,28 +100,20 @@ impl<F: Read + Seek> AAFFile<F> {
         for pid in &pid_path[0..pid_path.len() - 1] {
             let p1 = self.raw_property_by_pid(&obj, *pid);
             let pv = self.resolve_property_value(&obj, &p1);
-            match pv {
-                PropertyValue::Single(sro) => {
-                    obj = sro;
-                }
-                _ => panic!("Unexpected value in ref property path"),
-            }
+            obj = pv.unwrap_object(); 
         }
 
         let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len() - 1]);
-        if let PropertyValue::Set(s) = self.resolve_property_value(&obj, &pfinal) {
-            let found = s
-                .into_iter()
-                .find(|i| {
-                    let ident = self.raw_property_by_pid(&i, weak_ref.key_pid).raw_value;
-                    *ident == weak_ref.identification
-                })
-                .unwrap();
+        let found = self.resolve_property_value(&obj, &pfinal)
+            .unwrap_set()
+            .into_iter()
+            .find(|i| {
+                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid).raw_value;
+                *ident == weak_ref.identification
+            })
+            .unwrap();
 
-            PropertyValue::Reference(found)
-        } else {
-            panic!("Failed to resolve pid path (did not end in a set)");
-        }
+        PropertyValue::Reference(found) 
     }
 
     /// All of the raw properties for a given InterchangeObjectDescriptor
@@ -203,12 +205,8 @@ impl<F: Read + Seek> AAFFile<F> {
 
                 let refs = weak_vec_refs
                     .into_iter()
-                    .map(|r| {
-                        if let PropertyValue::Reference(x) = self.resolve_weak_reference(r) {
-                            return x;
-                        } else {
-                            unreachable!();
-                        }
+                    .map( |r| {
+                        self.resolve_weak_reference(r).unwrap_reference() 
                     })
                     .collect();
                 if property.stored_form == SF_WEAK_OBJECT_REF_VECTOR {

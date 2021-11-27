@@ -7,6 +7,7 @@ mod properties;
 mod types;
 mod file;
 mod session;
+mod meta;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
@@ -24,7 +25,7 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         let indent_str = String::from_utf8(vec![b' '; indent]).unwrap();
             
         if descend {
-            println!("{}Object({:?}) {{",indent_str, obj.path);
+            println!("{}Object({:?},\n{}  AUID:{}) {{",indent_str, obj.path, indent_str, obj.auid);
             for pid in file.all_property_ids(obj) {
                 let val = file.get_value(obj, pid);
 
@@ -84,7 +85,8 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
             }
             println!("{}}}", indent_str);
         } else {
-            println!("{}Object({:?})",indent_str, obj.path);
+            println!("{}Object({:?},\n{}  AUID:{})",indent_str, obj.path, 
+                indent_str, obj.auid);
         }
     }
     print_obj_impl(file, obj, 0, true);

@@ -1,27 +1,79 @@
-// use uuid::Uuid;
+use uuid::Uuid;
 
-// type StringArray = Vec<String>;
-// type Int64Array = Vec<u64>
-// type Ref = u64;
-// type AUIDArray = Vec<Uuid>
+use std::io::{Read, Seek};
 
-// struct ClassDefinition {
-//     idenitification: Uuid,
-//     name: String,
-//     description: String,
-//     parent_class: Option<Ref>,
-//     properties: Vec<Ref>,
-//     concrete: bool
-// }
+use crate::interchange_object::InterchangeObjectDescriptor;
+use crate::properties::PropertyValue;
+use crate::file::AAFFile;
+use crate::types::OMPropertyId;
 
-// struct PropertyDefinition {
-//     idenitification: Uuid,
-//     name: String,
-//     description: String,
-//     optional: bool,
-//     local_identification: u16,
-//     unique: bool
-// }
+type StringArray = Vec<String>;
+type Int64Array = Vec<u64>;
+type Ref = u64;
+type AUIDArray = Vec<Uuid>;
+
+type Index = usize;
+
+const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
+const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
+// AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
+
+pub struct MetaDictionary {
+    pub class_defs : Vec<ClassDefinition>
+}
+
+impl MetaDictionary {
+    fn load<F:Read + Seek>(file: &mut AAFFile<F>) -> Self {
+        
+        let object = {
+            let root = file.root_object();
+            let ov = file.get_value(&root, AAF_FILE_METADICTIONARY_PID);
+            ov.unwrap_object()
+        };
+
+        let class_defs: Vec<ClassDefinition> = {
+            file.get_value(&object, 0x0003)
+                .unwrap_set()
+                .into_iter()
+                .map(|obj| {
+                    ClassDefinition::load(file, &obj)
+                }).collect()
+        };
+
+        Self { class_defs } 
+    }
+}
+
+pub struct ClassDefinition {
+    pub interchange_object: InterchangeObjectDescriptor,
+    pub name: String,
+    pub description: String,
+    pub parent_class: Index,
+    pub properties: Vec<PropertyDefinition>,
+    pub concrete: bool
+}
+
+impl ClassDefinition {
+    fn load<F: Read + Seek>(file : &mut AAFFile<F>, 
+        obj: &InterchangeObjectDescriptor) -> Self {
+        todo!()
+    }
+}
+
+
+
+pub struct PropertyDefinition {
+    pub interchange_object: InterchangeObjectDescriptor,
+    pub name: String,
+    pub description: String,
+    pub optional: bool,
+    pub local_identification: u16,
+    pub unique: bool,
+    pub prop_type: ()
+}
+
+
+
 
 // struct TypeDefinitionCharacter {
 //     idenitification: Uuid,

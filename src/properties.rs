@@ -40,6 +40,24 @@ pub enum PropertyValue {
     ReferenceSet(Vec<InterchangeObjectDescriptor>)
 }
 
+impl PropertyValue {
+    pub fn unwrap_object(self) -> InterchangeObjectDescriptor {
+        if let Self::Single(o) = self { o } else { panic!("Failed"); }
+    }
+
+    pub fn unwrap_vector(self) -> Vec<InterchangeObjectDescriptor> {
+        if let Self::Vector(o) = self { o } else { panic!("Failed"); }
+    }
+
+    pub fn unwrap_set(self) -> Vec<InterchangeObjectDescriptor> {
+        if let Self::Set(o) = self { o } else { panic!("Failed"); }
+    }
+
+    pub fn unwrap_reference(self) -> InterchangeObjectDescriptor {
+        if let Self::Reference(o) = self {o} else {panic!("Failed"); }
+    }
+}
+
 impl fmt::Debug for PropertyValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
