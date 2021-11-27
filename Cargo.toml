@@ -1,7 +1,11 @@
 [package]
-name = "raaf"
-version = "0.1.0"
+name = "rust-aaf"
+version = "0.0.1"
 edition = "2021"
+author = "Jamie Hardt <jamiehardt@gmail.com>"
+description = "Rust implementation of the Advanced Authoring Format"
+readme = "README.md"
+repository = "https://github.com/iluvcapra/rust-aaf"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
