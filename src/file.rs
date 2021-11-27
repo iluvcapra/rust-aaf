@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::interchange_object::{InterchangeObjectDescriptor, InterchangeObjectDescriptorIter};
+use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::types::{OMKeySize, OMPropertyId, OMByteOrder, OMPropertyCount, OMPropertyTag};
 
@@ -21,6 +21,9 @@ pub struct AAFFile<F> {
 
 
 impl<F> AAFFile<F> { 
+    /// Retreive an object at a path.
+    ///
+    /// Panics: If `path` does not exist in storage
     pub fn object(&self, path: PathBuf) -> InterchangeObjectDescriptor {
         self.f
             .entry(path)
@@ -30,13 +33,15 @@ impl<F> AAFFile<F> {
             })
         .expect("Failed to locate object by path")
     }
-
+    
+    /// Retrive the root object.
     pub fn root_object(&self) -> InterchangeObjectDescriptor {
         self.object(PathBuf::from("/"))
     }
 }
 
 impl AAFFile<File> {
+    /// Open an AAF file at `path`
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<AAFFile<File>> {
         let cfb = cfb::open(path)?;
         Ok( Self::with_cfb(cfb) )
@@ -44,13 +49,26 @@ impl AAFFile<File> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
+    /// All of the `OMPropertyId`s available in the AAFFile for the given object
+    pub fn all_property_ids(&mut self, object: &InterchangeObjectDescriptor) -> Vec<OMPropertyId> {
+        let props = self.raw_properties(&object);
+        props.into_iter().map( |p| p.pid).collect()
+    }
+    
+    /// Get the value of an object property.
+    pub fn get_value(&mut self, object: &InterchangeObjectDescriptor, 
+        pid: OMPropertyId) -> PropertyValue {
+        let prop = self.raw_property_by_pid(object, pid);
+        self.resolve_property_value(object, &prop)
+    }
 
     /// A new `AAFFile` with a `cfb::CompoundFile`
-    pub fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
+    fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
         Self { f: cfb , weakref_table: weakref_table }
     }
-
+    
+    /// Retrive and parse the `referenced properties` table for a given cfb file
     fn weak_refs_table(f: &mut cfb::CompoundFile<F>) -> Vec<Vec<OMPropertyId>> {
         let ref_props_stream = f.open_stream(PathBuf::from("/referenced properties"))
             .expect("Failed to open referenced properties stream");
@@ -88,7 +106,8 @@ impl<F: Read + Seek> AAFFile<F> {
         }
     }
     
-    pub fn raw_properties(
+    /// All of the raw properties for a given InterchangeObjectDescriptor
+    fn raw_properties(
         &mut self, 
         object: &InterchangeObjectDescriptor
         ) -> Vec<RawProperty> {
@@ -102,8 +121,9 @@ impl<F: Read + Seek> AAFFile<F> {
         stream.read_to_end(&mut buf).expect("Error reading properties IStream");
         RawProperty::from_properties_istream(&mut buf)
     }
-
-    pub fn raw_property_by_pid(
+    
+    /// Retrive a raw property for an InterchangeObjectDescriptor
+    fn raw_property_by_pid(
         &mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
@@ -114,7 +134,7 @@ impl<F: Read + Seek> AAFFile<F> {
             .unwrap()
     }
 
-    pub fn resolve_property_value(
+    fn resolve_property_value(
         &mut self,
         object: &InterchangeObjectDescriptor,
         property: &RawProperty,
@@ -267,7 +287,7 @@ impl StrongSetReferenceIndex {
 struct WeakObjectReference {
     tag: OMPropertyTag,
     key_pid: OMPropertyId,
-    key_size: OMKeySize,
+    _key_size: OMKeySize,
     identification: Vec<u8>
 }
 
@@ -284,7 +304,7 @@ impl WeakObjectReference {
         stream.read_exact(&mut identification)
             .expect("Failed to read reference identification length");
         
-        WeakObjectReference { tag, key_pid, key_size, identification }
+        WeakObjectReference { tag, key_pid, _key_size: key_size, identification }
     }
 }
 
@@ -322,7 +342,7 @@ impl WeakCollectionReference {
             retval.push( WeakObjectReference {
                 tag: self.tag,
                 key_pid: self.key_pid,
-                key_size: self.key_size,
+                _key_size: self.key_size,
                 identification: ident
             })
         }
