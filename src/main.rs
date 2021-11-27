@@ -6,6 +6,7 @@ mod interchange_object;
 mod properties;
 mod types;
 mod file;
+mod session;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;

@@ -6,17 +6,18 @@ use std::io::{Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use cfb;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
+use crate::session::Session;
 use crate::types::{OMByteOrder, OMKeySize, OMPropertyCount, OMPropertyId, OMPropertyTag};
-
-use cfb;
 
 /// An AAF file.
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
     weakref_table: Vec<Vec<OMPropertyId>>,
+    session: Session,
 }
 
 impl<F> AAFFile<F> {
@@ -67,9 +68,11 @@ impl<F: Read + Seek> AAFFile<F> {
     /// A new `AAFFile` with a `cfb::CompoundFile`
     fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
+        let session = Session::new();
         Self {
             f: cfb,
             weakref_table: weakref_table,
+            session,
         }
     }
 
@@ -167,6 +170,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let index_path = object.path.join(index_name);
                 let index_stream = self.f.open_stream(index_path).unwrap();
                 let vector_index = StrongVectorReferenceIndex::from_istream(index_stream);
+
                 let members = vector_index
                     .member_paths(decoded_name, &object.path)
                     .into_iter()
@@ -181,6 +185,7 @@ impl<F: Read + Seek> AAFFile<F> {
                 let index_path = object.path.join(index_name);
                 let index_stream = self.f.open_stream(index_path).unwrap();
                 let set_index = StrongSetReferenceIndex::from_istream(index_stream);
+
                 let members = set_index
                     .member_paths(decoded_name, &object.path)
                     .into_iter()
@@ -207,7 +212,7 @@ impl<F: Read + Seek> AAFFile<F> {
                         if let PropertyValue::Reference(x) = self.resolve_weak_reference(r) {
                             return x;
                         } else {
-                            panic!("");
+                            unreachable!();
                         }
                     })
                     .collect();
@@ -223,9 +228,9 @@ impl<F: Read + Seek> AAFFile<F> {
 }
 
 struct StrongVectorReferenceIndex {
-    entry_count: u32,
-    first_free_key: u32,
-    last_free_key: u32,
+    _entry_count: u32,
+    _first_free_key: u32,
+    _last_free_key: u32,
     local_keys: Vec<u32>,
 }
 
@@ -241,9 +246,9 @@ impl StrongVectorReferenceIndex {
             local_keys[i] = entry;
         }
         StrongVectorReferenceIndex {
-            entry_count: entry_count as u32,
-            first_free_key,
-            last_free_key,
+            _entry_count: entry_count as u32,
+            _first_free_key: first_free_key,
+            _last_free_key: last_free_key,
             local_keys,
         }
     }
@@ -266,7 +271,7 @@ struct StrongSetReferenceIndexEntry {
 }
 
 struct StrongSetReferenceIndex {
-    entry_count: u32,
+    _entry_count: u32,
     first_free_key: u32,
     last_free_key: u32,
     key_pid: OMPropertyId,
@@ -296,7 +301,7 @@ impl StrongSetReferenceIndex {
             local_keys.push(obj);
         }
         Self {
-            entry_count: entry_count as u32,
+            _entry_count: entry_count as u32,
             first_free_key,
             last_free_key,
             key_pid,
