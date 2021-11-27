@@ -21,10 +21,10 @@ pub struct AAFFile<F> {
 }
 
 impl<F> AAFFile<F> {
-    /// Retreive an object at a path.
+    /// An object at a path.
     ///
     /// Panics: If `path` does not exist in storage
-    pub fn object(&self, path: PathBuf) -> InterchangeObjectDescriptor {
+    fn object(&self, path: PathBuf) -> InterchangeObjectDescriptor {
         self.f
             .entry(path)
             .map(|entry| InterchangeObjectDescriptor {
@@ -34,7 +34,7 @@ impl<F> AAFFile<F> {
             .expect("Failed to locate object by path")
     }
 
-    /// Retrive the root object.
+    /// The root object.
     pub fn root_object(&self) -> InterchangeObjectDescriptor {
         self.object(PathBuf::from("/"))
     }
@@ -56,11 +56,8 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     /// Get the value of an object property.
-    pub fn get_value(
-        &mut self,
-        object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId,
-    ) -> PropertyValue {
+    pub fn get_value(&mut self, object: &InterchangeObjectDescriptor,
+        pid: OMPropertyId) -> PropertyValue {
         let prop = self.raw_property_by_pid(object, pid);
         self.resolve_property_value(object, &prop)
     }
@@ -133,8 +130,7 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     /// Retrive a raw property for an InterchangeObjectDescriptor
-    fn raw_property_by_pid(
-        &mut self,
+    fn raw_property_by_pid(&mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
     ) -> RawProperty {
@@ -145,12 +141,11 @@ impl<F: Read + Seek> AAFFile<F> {
             .unwrap()
     }
 
-    fn resolve_property_value(
-        &mut self,
+    fn resolve_property_value(&mut self,
         object: &InterchangeObjectDescriptor,
-        property: &RawProperty,
-    ) -> PropertyValue {
-        let raw_data = Self::raw_property_by_pid(self, object, property.pid).raw_value;
+        property: &RawProperty) -> PropertyValue {
+        let raw_data = Self::raw_property_by_pid(self, object, property.pid)
+            .raw_value;
 
         match property.stored_form {
             SF_DATA => PropertyValue::Data(raw_data),
