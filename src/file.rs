@@ -68,10 +68,6 @@ impl<F: Read + Seek> AAFFile<F> {
         self.resolve_property_value(object, &prop)
     }
 
-    pub fn meta_dictionary(&mut self) -> MetaDictionary {
-        todo!()
-    }
-
     /// A new `AAFFile` with a `cfb::CompoundFile`
     fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
