@@ -12,7 +12,6 @@ use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::session::Session;
 use crate::types::{OMByteOrder, OMKeySize, OMPropertyCount, OMPropertyId, OMPropertyTag};
-use crate::meta::MetaDictionary;
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
@@ -23,7 +22,7 @@ const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
     weakref_table: Vec<Vec<OMPropertyId>>,
-    session: Session,
+    // session: Session,
 }
 
 impl<F> AAFFile<F> {
@@ -71,11 +70,11 @@ impl<F: Read + Seek> AAFFile<F> {
     /// A new `AAFFile` with a `cfb::CompoundFile`
     fn with_cfb(mut cfb: cfb::CompoundFile<F>) -> Self {
         let weakref_table = Self::weak_refs_table(&mut cfb);
-        let session = Session { };
+        // let session = Session { };
         Self {
             f: cfb,
             weakref_table: weakref_table,
-            session,
+            // session,
         }
     }
 

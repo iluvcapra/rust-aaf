@@ -7,7 +7,6 @@ mod properties;
 mod types;
 mod file;
 mod session;
-mod meta;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
