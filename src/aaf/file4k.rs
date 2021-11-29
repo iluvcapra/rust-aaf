@@ -1,0 +1,3 @@
+struct AAFFileObject4k {
+
+}
