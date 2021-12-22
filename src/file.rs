@@ -10,53 +10,67 @@ use cfb;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
-use crate::types::{OMByteOrder, OMKeySize, OMPropertyCount, OMPropertyId, OMPropertyTag};
+use crate::types::*;
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 // AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
 
-
-struct TimeStamp {
-    date: (i16, u8, u8),
-    time: (u8, u8, u8, u8)
-}
-
-struct VersionType {
-    major: u8,
-    minor: u8
-}
-
-struct ContentStorage<'a,F> {
+pub struct ContentStorage<'a,F> {
     file: &'a mut AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-struct Header<'a, F> {
+pub struct Header<'a, F> {
     file: &'a mut AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-impl<'a, F> Header<'a, F> {
+impl<'a, F> Header<'a, F> where F: Read + Seek {
     
-    fn byte_order(&mut self) -> u16 {
-       todo!() 
+    pub fn byte_order(&mut self) -> AAFUInt16 {
+        let pid = 0x3b01; 
+        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
+            b[..].aaf_into()
+        } else {
+            panic!("Required property Header.ByteOrder not found")
+        }
     }
 
-    fn last_modified(&mut self) -> TimeStamp {
-       todo!()
-    }
+    pub fn last_modified(&mut self) -> TimeStamp {
+        let pid = 0x3b02; 
+        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
+            b[..].aaf_into()
+        } else {
+            panic!("Required property Header.TimeStamp not found")
+        }
+     }
 
-    fn version(&mut self) -> VersionType {
-        todo!()
+    pub fn version(&mut self) -> VersionType {
+        let pid = 0x3b05; // fixme this is wrong
+        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
+            b[..].aaf_into()
+        } else {
+            panic!("Required property Header.VersionType not found")
+        }
+    }
+    
+    pub fn object_model_version(&mut self) -> Option<AAFUInt32> {
+        let PID = 0; //fixme this is wrong
+        match self.file.get_value(&self.object, PID) {
+            Some(PropertyValue::Data(b)) => {
+                Some(b[..].aaf_into())
+            }
+            _ => None
+        }
     }
 
     fn content(&mut self) -> ContentStorage<'a, F> {
-        todo!()
+       todo!()
     }
 
     fn dictionary(&mut self) -> () {
-        todo!()
+       todo!()
     } 
 }
 
@@ -107,7 +121,8 @@ impl AAFFile<File> {
 impl<F: Read + Seek> AAFFile<F> {
 
     pub fn header(&mut self) -> Header<F> {
-        if let PropertyValue::Single(obj) = self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
+        if let Some(PropertyValue::Single(obj)) = 
+            self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
             Header { 
                 file: self,
                 object: obj
@@ -118,7 +133,8 @@ impl<F: Read + Seek> AAFFile<F> {
     }
     
     pub fn meta_dictionary(&mut self) -> MetaDictionary<F> {
-        if let PropertyValue::Single(obj) = self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
+        if let Some(PropertyValue::Single(obj)) = 
+            self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
             MetaDictionary { 
                 file: self,
                 object: obj
@@ -136,8 +152,8 @@ impl<F: Read + Seek> AAFFile<F> {
 
     /// Get the value of an object property.
     pub fn get_value(&mut self, object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId) -> PropertyValue {
-        let prop = self.raw_property_by_pid(object, pid);
+        pid: OMPropertyId) -> Option<PropertyValue> {
+        let prop = self.raw_property_by_pid(object, pid)?;
         self.resolve_property_value(object, &prop)
     }
 
@@ -167,17 +183,18 @@ impl<F: Read + Seek> AAFFile<F> {
         let mut obj = self.root_object();
 
         for pid in &pid_path[0..pid_path.len() - 1] {
-            let p1 = self.raw_property_by_pid(&obj, *pid);
-            let pv = self.resolve_property_value(&obj, &p1);
+            let p1 = self.raw_property_by_pid(&obj, *pid).unwrap();
+            let pv = self.resolve_property_value(&obj, &p1).unwrap();
             obj = pv.unwrap_object(); 
         }
 
-        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len() - 1]);
-        let found = self.resolve_property_value(&obj, &pfinal)
+        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len() - 1]).unwrap();
+        let found = self.resolve_property_value(&obj, &pfinal).unwrap()
             .unwrap_set()
             .into_iter()
             .find(|i| {
-                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid).raw_value;
+                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid)
+                    .unwrap().raw_value;
                 *ident == weak_ref.identification
             })
             .unwrap();
@@ -204,31 +221,29 @@ impl<F: Read + Seek> AAFFile<F> {
     fn raw_property_by_pid(&mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
-    ) -> RawProperty {
+    ) -> Option<RawProperty> {
         self.raw_properties(object)
             .into_iter()
             .find(|p| p.pid == pid)
-            .take()
-            .unwrap()
     }
 
     fn resolve_property_value(&mut self,
         object: &InterchangeObjectDescriptor,
-        property: &RawProperty) -> PropertyValue {
-        let raw_data = Self::raw_property_by_pid(self, object, property.pid)
-            .raw_value;
+        property: &RawProperty) -> Option<PropertyValue> {
+        let raw_data = 
+            Self::raw_property_by_pid(self, object, property.pid)?.raw_value;
 
         match property.stored_form {
-            SF_DATA => PropertyValue::Data(raw_data),
+            SF_DATA => Some(PropertyValue::Data(raw_data)),
             SF_DATA_STREAM => {
                 let decoded_name = property.raw_string_value();
                 let ref_path = object.path.join(decoded_name);
-                PropertyValue::Stream(ref_path)
+                Some( PropertyValue::Stream(ref_path))
             }
             SF_STRONG_OBJECT_REF => {
                 let decoded_name = property.raw_string_value();
                 let ref_path = object.path.join(decoded_name);
-                PropertyValue::Single(self.object(ref_path))
+                Some( PropertyValue::Single(self.object(ref_path)))
             }
             SF_STRONG_OBJECT_REF_VECTOR => {
                 let decoded_name = property.raw_string_value();
@@ -243,7 +258,7 @@ impl<F: Read + Seek> AAFFile<F> {
                     .map(|path| self.object(path))
                     .collect();
 
-                PropertyValue::Vector(members)
+                Some( PropertyValue::Vector(members))
             }
             SF_STRONG_OBJECT_REF_SET => {
                 let decoded_name = property.raw_string_value();
@@ -258,11 +273,11 @@ impl<F: Read + Seek> AAFFile<F> {
                     .map(|path| self.object(path))
                     .collect();
 
-                PropertyValue::Set(members)
+                Some( PropertyValue::Set(members))
             }
             SF_WEAK_OBJECT_REF => {
                 let weak_ref = WeakObjectReference::from_data(&property.raw_value);
-                self.resolve_weak_reference(weak_ref)
+                Some( self.resolve_weak_reference(weak_ref))
             }
             SF_WEAK_OBJECT_REF_VECTOR | SF_WEAK_OBJECT_REF_SET => {
                 let decoded_name = property.raw_string_value();
@@ -279,9 +294,9 @@ impl<F: Read + Seek> AAFFile<F> {
                     })
                     .collect();
                 if property.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
-                    PropertyValue::ReferenceVector(refs)
+                    Some( PropertyValue::ReferenceVector(refs) )
                 } else {
-                    PropertyValue::ReferenceSet(refs)
+                    Some( PropertyValue::ReferenceSet(refs) )
                 }
             }
             _ => panic!("Unrecgonized stored form found."),

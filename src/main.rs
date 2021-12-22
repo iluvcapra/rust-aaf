@@ -27,7 +27,7 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         if descend {
             println!("{}Object({:?},\n{}  AUID:{}) {{",indent_str, obj.path, indent_str, obj.auid);
             for pid in file.all_property_ids(obj) {
-                let val = file.get_value(obj, pid);
+                let val = file.get_value(obj, pid).unwrap();
 
                 match val {
                     PropertyValue::Data(v) => {
@@ -97,7 +97,14 @@ fn main() {
     let mut f = AAFFile::open(test_path)
         .expect("error opening file");
     
-    let root = f.root_object();
+
+    let mut h = f.header();
+
+    println!(" Last modified: {:?}", h.last_modified());
+    println!(" Byte order: {:?}", h.byte_order());
+    println!(" Version: {:?}", h.version());
+
+    //let root = f.root_object();
    
-    print_object(&mut f, &root);
+    //print_object(&mut f, &root);
 }
