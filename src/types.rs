@@ -29,16 +29,16 @@ pub type LengthType = AAFInt64;
 pub type JPEGTableIDType = AAFInt32;
 pub type PhaseFrameType = AAFInt32;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TimeStamp {
-    date: (i16, u8, u8),
-    time: (u8, u8, u8, u8)
+    pub date: (i16, u8, u8),
+    pub time: (u8, u8, u8, u8)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct VersionType {
-    major: u8,
-    minor: u8
+    pub major: u8,
+    pub minor: u8
 }
 
 pub trait AAFFrom<F> {

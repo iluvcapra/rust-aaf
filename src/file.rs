@@ -11,75 +11,11 @@ use cfb;
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::types::*;
+use crate::aaf::classes::{Header, MetaDictionary};
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 // AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
-
-pub struct ContentStorage<'a,F> {
-    file: &'a mut AAFFile<F>,
-    object: InterchangeObjectDescriptor
-}
-
-pub struct Header<'a, F> {
-    file: &'a mut AAFFile<F>,
-    object: InterchangeObjectDescriptor
-}
-
-impl<'a, F> Header<'a, F> where F: Read + Seek {
-    
-    pub fn byte_order(&mut self) -> AAFUInt16 {
-        let pid = 0x3b01; 
-        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
-            b[..].aaf_into()
-        } else {
-            panic!("Required property Header.ByteOrder not found")
-        }
-    }
-
-    pub fn last_modified(&mut self) -> TimeStamp {
-        let pid = 0x3b02; 
-        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
-            b[..].aaf_into()
-        } else {
-            panic!("Required property Header.TimeStamp not found")
-        }
-     }
-
-    pub fn version(&mut self) -> VersionType {
-        let pid = 0x3b05; // fixme this is wrong
-        if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
-            b[..].aaf_into()
-        } else {
-            panic!("Required property Header.VersionType not found")
-        }
-    }
-    
-    pub fn object_model_version(&mut self) -> Option<AAFUInt32> {
-        let PID = 0; //fixme this is wrong
-        match self.file.get_value(&self.object, PID) {
-            Some(PropertyValue::Data(b)) => {
-                Some(b[..].aaf_into())
-            }
-            _ => None
-        }
-    }
-
-    fn content(&mut self) -> ContentStorage<'a, F> {
-       todo!()
-    }
-
-    fn dictionary(&mut self) -> () {
-       todo!()
-    } 
-}
-
-struct MetaDictionary<'a, F> {
-    file: &'a mut AAFFile<F>,
-    object: InterchangeObjectDescriptor
-}
-
-
 
 
 
@@ -123,26 +59,23 @@ impl<F: Read + Seek> AAFFile<F> {
     pub fn header(&mut self) -> Header<F> {
         if let Some(PropertyValue::Single(obj)) = 
             self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
-            Header { 
-                file: self,
-                object: obj
-            }
+            Header::from(self, obj)
         } else {
             panic!()
         }
     }
     
-    pub fn meta_dictionary(&mut self) -> MetaDictionary<F> {
-        if let Some(PropertyValue::Single(obj)) = 
-            self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
-            MetaDictionary { 
-                file: self,
-                object: obj
-            }
-        } else {
-            panic!()
-        }
-    }
+    // pub fn meta_dictionary(&mut self) -> MetaDictionary<F> {
+    //     if let Some(PropertyValue::Single(obj)) = 
+    //         self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
+    //         MetaDictionary { 
+    //             file: self,
+    //             object: obj
+    //         }
+    //     } else {
+    //         panic!()
+    //     }
+    // }
 
     /// All of the `OMPropertyId`s available in the AAFFile for the given object
     pub fn all_property_ids(&mut self, object: &InterchangeObjectDescriptor) -> Vec<OMPropertyId> {
@@ -547,5 +480,37 @@ mod tests {
 
         let _p1 = f.raw_property_by_pid(&root, 0x01);
         let _p2 = f.raw_property_by_pid(&root, 0x02);
+    }
+
+    #[test]
+    fn test_all_properties() {
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let mut f = AAFFile::open(test_path).unwrap();
+        let root = f.root_object();
+
+        let all = f.all_property_ids(&root);
+
+        assert_eq!(all.len(), 2, "Found property ids"); 
+    }
+
+    #[test]
+    fn test_get_header() {
+        let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
+        let mut f = AAFFile::open(test_path).unwrap();
+        
+        let mut h = f.header();
+
+        assert_eq!(h.byte_order(), 0x4949);
+        
+        assert_eq!(h.last_modified(), 
+            TimeStamp {
+                date: (2021, 11, 9) ,
+                time: (15,28,58,0)
+            });
+
+        assert_eq!(h.version(), 
+            VersionType {
+                major: 1, minor: 1
+            })
     }
 }

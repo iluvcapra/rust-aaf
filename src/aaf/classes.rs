@@ -1,3 +1,9 @@
+use crate::interchange_object::InterchangeObjectDescriptor;
+use crate::file::AAFFile;
+use crate::types::*;
+use crate::properties::PropertyValue;
+
+use std::io::{Read, Seek};
 
 pub struct ContentStorage<'a,F> {
     file: &'a mut AAFFile<F>,
@@ -11,6 +17,10 @@ pub struct Header<'a, F> {
 
 impl<'a, F> Header<'a, F> where F: Read + Seek {
     
+    pub fn from(file: &'a mut AAFFile<F>, object: InterchangeObjectDescriptor) -> Self {
+        Header { file: file, object: object }
+    }
+
     pub fn byte_order(&mut self) -> AAFUInt16 {
         let pid = 0x3b01; 
         if let Some(PropertyValue::Data(b)) = self.file.get_value(&self.object, pid) {
