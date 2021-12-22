@@ -10,12 +10,63 @@ use cfb;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
-use crate::session::Session;
 use crate::types::{OMByteOrder, OMKeySize, OMPropertyCount, OMPropertyId, OMPropertyTag};
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 // AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
+
+
+struct TimeStamp {
+    date: (i16, u8, u8),
+    time: (u8, u8, u8, u8)
+}
+
+struct VersionType {
+    major: u8,
+    minor: u8
+}
+
+struct ContentStorage<'a,F> {
+    file: &'a mut AAFFile<F>,
+    object: InterchangeObjectDescriptor
+}
+
+struct Header<'a, F> {
+    file: &'a mut AAFFile<F>,
+    object: InterchangeObjectDescriptor
+}
+
+impl<'a, F> Header<'a, F> {
+    
+    fn byte_order(&mut self) -> u16 {
+       todo!() 
+    }
+
+    fn last_modified(&mut self) -> TimeStamp {
+       todo!()
+    }
+
+    fn version(&mut self) -> VersionType {
+        todo!()
+    }
+
+    fn content(&mut self) -> ContentStorage<'a, F> {
+        todo!()
+    }
+
+    fn dictionary(&mut self) -> () {
+        todo!()
+    } 
+}
+
+struct MetaDictionary<'a, F> {
+    file: &'a mut AAFFile<F>,
+    object: InterchangeObjectDescriptor
+}
+
+
+
 
 
 /// An AAF file.
@@ -54,6 +105,29 @@ impl AAFFile<File> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
+
+    pub fn header(&mut self) -> Header<F> {
+        if let PropertyValue::Single(obj) = self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
+            Header { 
+                file: self,
+                object: obj
+            }
+        } else {
+            panic!()
+        }
+    }
+    
+    pub fn meta_dictionary(&mut self) -> MetaDictionary<F> {
+        if let PropertyValue::Single(obj) = self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
+            MetaDictionary { 
+                file: self,
+                object: obj
+            }
+        } else {
+            panic!()
+        }
+    }
+
     /// All of the `OMPropertyId`s available in the AAFFile for the given object
     pub fn all_property_ids(&mut self, object: &InterchangeObjectDescriptor) -> Vec<OMPropertyId> {
         let props = self.raw_properties(&object);
