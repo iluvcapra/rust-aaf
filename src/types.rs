@@ -41,28 +41,28 @@ pub struct VersionType {
     pub minor: u8
 }
 
-pub trait AAFFrom<F> {
-    fn aaf_from(item: F) -> Self;
+pub trait AAFFrom {
+    fn aaf_from(item: &[u8]) -> Self;
 }
 
 pub trait AAFInto<F> {
     fn aaf_into(self: Self) -> F;
 }
 
-impl<T, F> AAFInto<T> for F where T: AAFFrom<F> {
+impl<T> AAFInto<T> for &[u8] where T: AAFFrom {
     fn aaf_into(self: Self) -> T {
         T::aaf_from(self)
     }
 }
 
-impl AAFFrom<&[u8]> for AAFUInt16 {
+impl AAFFrom for AAFUInt16 {
     fn aaf_from(item: &[u8]) -> Self {
         Cursor::new(item).read_u16::<LittleEndian>()
             .expect("Error reading AAFUInt16")
     }
 }
 
-impl AAFFrom<&[u8]> for u32 {
+impl AAFFrom for u32 {
     fn aaf_from(item: &[u8]) -> Self {
         Cursor::new(item).read_u32::<LittleEndian>()
             .expect("Failed to decode u32")
@@ -70,14 +70,14 @@ impl AAFFrom<&[u8]> for u32 {
 }
 
 
-impl AAFFrom<&[u8]> for AAFUInt64 {
+impl AAFFrom for AAFUInt64 {
     fn aaf_from(item: &[u8]) -> Self {
         Cursor::new(item).read_u64::<LittleEndian>()
             .expect("Failed to decode AAFUInt64")
     }
 }
 
-impl AAFFrom<&[u8]> for AAFInt16 {
+impl AAFFrom for AAFInt16 {
     fn aaf_from(item: &[u8]) -> Self {
         Cursor::new(item).read_i16::<LittleEndian>()
             .expect("Error  reading AAFInt16")
@@ -100,7 +100,7 @@ impl AAFFrom<&[u8]> for AAFInt16 {
 //     }
 // }
 
-impl AAFFrom<&[u8]> for TimeStamp {
+impl AAFFrom for TimeStamp {
     fn aaf_from(item: &[u8]) -> Self {
         if item.len() < 8 {
             panic!("TimeStamp record insufficient length")
@@ -113,7 +113,7 @@ impl AAFFrom<&[u8]> for TimeStamp {
     }
 }
 
-impl AAFFrom<&[u8]> for VersionType {
+impl AAFFrom for VersionType {
     fn aaf_from(item: &[u8]) -> Self {
         if item.len() < 2 {
             panic!("VersionType record insufficient length")
@@ -126,4 +126,16 @@ impl AAFFrom<&[u8]> for VersionType {
     }
 }
 
-
+impl AAFFrom for Uuid {
+    fn aaf_from(item: &[u8]) -> Self {
+        if item.len() < 16 {
+            panic!("Uuid record insufficient length")
+        } else {
+            let d1: AAFUInt32 = item[0..3].aaf_into();
+            let d2: AAFUInt16 = item[3..5].aaf_into();
+            let d3: AAFUInt16 = item[5..7].aaf_into();
+            let d4: &[u8] = &item[7..15];
+            Uuid::from_fields(d1, d2, d3, d4).unwrap()
+        }
+    }
+}

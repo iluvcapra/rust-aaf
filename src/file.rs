@@ -11,7 +11,7 @@ use cfb;
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::types::*;
-use crate::aaf::classes::{Header, MetaDictionary};
+use crate::aaf::classes::{Header, MetaDictionary, AAFObject};
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
@@ -59,7 +59,7 @@ impl<F: Read + Seek> AAFFile<F> {
     pub fn header(&mut self) -> Header<F> {
         if let Some(PropertyValue::Single(obj)) = 
             self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
-            Header::from(self, obj)
+            Header::make(self, obj)
         } else {
             panic!()
         }

@@ -12,8 +12,11 @@ mod aaf;
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
 use crate::properties::*;
+use crate::aaf::classes::*;
 
 use std::io::{Read, Seek};
+
+use uuid::Uuid;
 
 fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
     where T: Read + Seek {
@@ -103,8 +106,10 @@ fn main() {
     println!(" Last modified: {:?}", h.last_modified());
     println!(" Byte order: {:?}", h.byte_order());
     println!(" Version: {:?}", h.version());
+    println!(" Operational Pattern: {:?}", h.operational_pattern());
+    println!(" Object model version: {}", h.object_model_version().unwrap_or(0));
+    println!(" Object generation: {:?}", h.generation());
 
     //let root = f.root_object();
-   
     //print_object(&mut f, &root);
 }
