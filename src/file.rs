@@ -17,13 +17,83 @@ const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 // AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
 
+pub struct AAFEntry {
+    pub path: Vec<OMPropertyId>,
+    pub value: Option<PropertyValue>,
+}
 
+pub struct AAFPropertyIterator<'a,F> {
+    file: &'a mut AAFFile<F>,
+    stack: Vec<(Vec<OMPropertyId>, InterchangeObjectDescriptor)>,
+} 
+
+impl<'a,F> AAFPropertyIterator<'a,F> where F:Read+Seek {
+    pub(crate) fn new(
+        file: &'a mut AAFFile<F>,
+        root: InterchangeObjectDescriptor) -> AAFPropertyIterator<'a,F> {
+        let mut rval = AAFPropertyIterator {
+            file,
+            stack: Vec::new()
+        };
+        
+        rval.stack_children(&vec![], &root);
+        rval
+    }
+
+    fn stack_children(&mut self, 
+        path_to: &Vec<OMPropertyId>,
+        parent: &InterchangeObjectDescriptor) -> () {
+        
+        for pid in self.file.all_property_ids(parent).into_iter().rev() {
+            let mut this_path = path_to.clone();
+            this_path.push(pid);
+            match self.file.get_value(parent, pid) {
+                Some(PropertyValue::Single(obj)) => {
+                    self.stack.push((this_path, obj));
+                },
+                Some(PropertyValue::Vector(vec) | PropertyValue::Set(vec)) => {
+                    for obj in vec.into_iter().rev() {
+                        self.stack.push((this_path.clone(), obj));
+                    } 
+                },
+                Some(PropertyValue::Data(_) | PropertyValue::Stream(_)) => {},
+                Some(
+                    PropertyValue::Reference(_) | 
+                    PropertyValue::ReferenceSet(_) |
+                    PropertyValue::ReferenceVector(_)) => {},
+                None => {
+                }
+            }
+        }
+    }
+}
+
+
+impl<'a, F> Iterator for AAFPropertyIterator<'_, F> where F: Read + Seek{
+    type Item = AAFEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(path_pid_tuple) = self.stack.pop() {
+            let obj_to_yield = path_pid_tuple.1;
+            let mut path_to_yield = path_pid_tuple.0;
+            self.stack_children(&path_to_yield, &obj_to_yield);
+            Some(AAFEntry {
+               path: path_to_yield.clone(),
+               value: 
+                   path_to_yield.pop().map(|p| {
+                        self.file.get_value(&obj_to_yield,p) 
+                   }).unwrap_or(None)
+            })
+        } else {
+            None
+        }
+    }
+}
 
 /// An AAF file.
 pub struct AAFFile<F> {
     f: cfb::CompoundFile<F>,
     weakref_table: Vec<Vec<OMPropertyId>>,
-    // session: Session,
 }
 
 impl<F> AAFFile<F> {
@@ -56,7 +126,11 @@ impl AAFFile<File> {
 
 impl<F: Read + Seek> AAFFile<F> {
 
-    pub fn header(&mut self) -> Header<F> {
+    pub fn walk_hard_links(&mut self) -> AAFPropertyIterator<F> {
+        AAFPropertyIterator::new(self, self.root_object())    
+    }
+
+    pub fn header(mut self) -> Header<F> {
         if let Some(PropertyValue::Single(obj)) = 
             self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
             Header::make(self, obj)

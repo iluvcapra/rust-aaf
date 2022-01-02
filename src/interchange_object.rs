@@ -8,6 +8,7 @@ pub trait InterchangeObject {
     fn path(&self) -> PathBuf;
 }
 
+#[derive(Clone)]
 pub struct InterchangeObjectDescriptor {
     pub auid : Uuid,
     pub path : PathBuf,

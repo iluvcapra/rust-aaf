@@ -9,11 +9,16 @@ use uuid::Uuid;
 
 const GENERATION_PID : OMPropertyId = 0x0102; 
 
-pub trait AAFObject<'a, F> {
+pub trait AAFObject<F> {
     
-    fn make(file: &'a mut AAFFile<F>, desc: InterchangeObjectDescriptor) -> Self;
+    fn make(file: AAFFile<F>, desc: InterchangeObjectDescriptor) -> Self;
     
     fn get_property_value(&mut self, pid: OMPropertyId) -> Option<PropertyValue>;
+
+    fn generation(&mut self) -> Option<Uuid> {
+        let pid = GENERATION_PID;
+        self.get_optional_data(pid) 
+    }
 
     fn get_optional_data<T: AAFFrom>(&mut self, pid: OMPropertyId) -> Option<T> {
         match self.get_property_value(pid) {
@@ -22,34 +27,22 @@ pub trait AAFObject<'a, F> {
         }
     }
 
-    fn generation(&mut self) -> Option<Uuid> {
-        let pid = GENERATION_PID;
-        self.get_optional_data(pid) 
-    }
-
     fn get_required_data<T: AAFFrom>(&mut self, pid: OMPropertyId) -> T {
-        self.get_optional_data(pid).expect("Required property not found")
-    }
-    
-    fn get_optional_object<T: AAFObject<'a, F>>(&mut self, pid: OMPropertyId) -> Option<T> {
-        match self.get_property_value(pid) {
-            _ => None
-        }
-    }
-
-    fn get_required_vector<T: AAFObject<'a, F>>(&mut self, pid: OMPropertyId) -> Vec<T> {
-        todo!()
+        self.get_optional_data(pid)
+            .expect(
+                &format!("Required property (pid {}) not found", pid)
+                )
     }
 }
 
-pub struct Header<'a, F> {
-    file: &'a mut AAFFile<F>,
+pub struct Header<F> {
+    file: AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-impl<'a, F: Read + Seek> AAFObject<'a, F> for Header<'a, F> { 
+impl<F: Read + Seek> AAFObject<F> for Header<F> { 
 
-    fn make(file: &'a mut AAFFile<F>, object: InterchangeObjectDescriptor) -> Self {
+    fn make(file: AAFFile<F>, object: InterchangeObjectDescriptor) -> Self {
         Self { file: file, object: object }
     }
 
@@ -58,7 +51,7 @@ impl<'a, F: Read + Seek> AAFObject<'a, F> for Header<'a, F> {
     }
 }
 
-impl<'a, F> Header<'a, F> where F: Read + Seek {
+impl<F> Header<F> where F: Read + Seek {
 
     pub fn byte_order(&mut self) -> AAFUInt16 {
         let pid = 0x3b01;
@@ -85,35 +78,35 @@ impl<'a, F> Header<'a, F> where F: Read + Seek {
         self.get_optional_data(pid)
     }
 
-    pub fn content(&mut self) -> ContentStorage<'a, F> {
+    pub fn content(&mut self) -> ContentStorage<F> {
         todo!()
     }
 
-    pub fn dictionary(&mut self) -> Dictionary<'a, F> {
+    pub fn dictionary(&mut self) -> Dictionary<F> {
         todo!()
     }
 
-    pub fn identification_list(&mut self) -> Vec<Identification<'a,F>> {
+    pub fn identification_list(&mut self) -> Vec<Identification<F>> {
         todo!()
     }
 }
 
-pub struct MetaDictionary<'a, F> {
-    file: &'a mut AAFFile<F>,
+pub struct MetaDictionary<F> {
+    file: AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-pub struct Dictionary<'a, F> {
-    file: &'a mut AAFFile<F>,
+pub struct Dictionary<F> {
+    file: AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-pub struct ContentStorage<'a,F> {
-    file: &'a mut AAFFile<F>,
+pub struct ContentStorage<F> {
+    file: AAFFile<F>,
     object: InterchangeObjectDescriptor
 }
 
-pub struct Identification<'a,F> {
-    file: &'a mut AAFFile<F>,
+pub struct Identification<F> {
+    file: AAFFile<F>,
     object: InterchangeObjectDescriptor
 }

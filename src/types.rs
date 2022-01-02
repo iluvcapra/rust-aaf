@@ -84,22 +84,6 @@ impl AAFFrom for AAFInt16 {
     }
 }
 
-// impl TryFrom<&[u8]> for AAFInt32 {
-//     type Error = io::Error;
-
-//     fn try_from(item: &[u8]) -> io::Result<Self> {
-//         Cursor::new(item).read_i32::<LittleEndian>()
-//     }
-// }
-
-// impl TryFrom<&[u8]> for AAFInt64 {
-//     type Error = io::Error;
-
-//     fn try_from(item: &[u8]) -> io::Result<Self> {
-//         Cursor::new(item).read_i64::<LittleEndian>()
-//     }
-// }
-
 impl AAFFrom for TimeStamp {
     fn aaf_from(item: &[u8]) -> Self {
         if item.len() < 8 {
