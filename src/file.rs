@@ -18,53 +18,38 @@ const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
 // AAF File uuid b3b398a5-1c90-11d4-8053-080036210804
 
 pub struct AAFEntry {
-    pub path: Vec<OMPropertyId>,
+    pub parent: InterchangeObjectDescriptor,
+    pub property: OMPropertyId,
     pub value: Option<PropertyValue>,
 }
 
 pub struct AAFPropertyIterator<'a,F> {
     file: &'a mut AAFFile<F>,
-    stack: Vec<(Vec<OMPropertyId>, InterchangeObjectDescriptor)>,
+    stack: Vec<AAFEntry>,
 } 
 
 impl<'a,F> AAFPropertyIterator<'a,F> where F:Read+Seek {
-    pub(crate) fn new(
-        file: &'a mut AAFFile<F>,
-        root: InterchangeObjectDescriptor) -> AAFPropertyIterator<'a,F> {
-        let mut rval = AAFPropertyIterator {
+    pub(crate) fn new(file: &'a mut AAFFile<F>, 
+        root_object: InterchangeObjectDescriptor) -> Self {
+
+        let mut retval = AAFPropertyIterator {
             file,
-            stack: Vec::new()
+            stack: vec![]
         };
-        
-        rval.stack_children(&vec![], &root);
-        rval
+
+        retval.fill_stack(&root_object);
+        retval
     }
 
-    fn stack_children(&mut self, 
-        path_to: &Vec<OMPropertyId>,
-        parent: &InterchangeObjectDescriptor) -> () {
-        
-        for pid in self.file.all_property_ids(parent).into_iter().rev() {
-            let mut this_path = path_to.clone();
-            this_path.push(pid);
-            match self.file.get_value(parent, pid) {
-                Some(PropertyValue::Single(obj)) => {
-                    self.stack.push((this_path, obj));
-                },
-                Some(PropertyValue::Vector(vec) | PropertyValue::Set(vec)) => {
-                    for obj in vec.into_iter().rev() {
-                        self.stack.push((this_path.clone(), obj));
-                    } 
-                },
-                Some(PropertyValue::Data(_) | PropertyValue::Stream(_)) => {},
-                Some(
-                    PropertyValue::Reference(_) | 
-                    PropertyValue::ReferenceSet(_) |
-                    PropertyValue::ReferenceVector(_)) => {},
-                None => {
-                }
-            }
-        }
+    fn fill_stack(&mut self, parent: &InterchangeObjectDescriptor) {
+        for pid in self.file.all_property_ids(parent) {
+            let pv = self.file.get_value(&parent, pid); 
+            self.stack.push(AAFEntry {
+                parent: parent.clone(),
+                property: pid,
+                value: pv
+            })        
+        } 
     }
 }
 
@@ -73,20 +58,25 @@ impl<'a, F> Iterator for AAFPropertyIterator<'_, F> where F: Read + Seek{
     type Item = AAFEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(path_pid_tuple) = self.stack.pop() {
-            let obj_to_yield = path_pid_tuple.1;
-            let mut path_to_yield = path_pid_tuple.0;
-            self.stack_children(&path_to_yield, &obj_to_yield);
-            Some(AAFEntry {
-               path: path_to_yield.clone(),
-               value: 
-                   path_to_yield.pop().map(|p| {
-                        self.file.get_value(&obj_to_yield,p) 
-                   }).unwrap_or(None)
-            })
-        } else {
-            None
-        }
+        self.stack.pop().map(move |e| {
+            match &e.value {
+                Some(PropertyValue::Single(obj)) => {
+                    self.fill_stack(&obj);
+                },
+                Some(PropertyValue::Vector(list)) => {
+                    for obj in list.into_iter().rev() {
+                        self.fill_stack(&obj);
+                    }
+                },
+                Some(PropertyValue::Set(list)) => {
+                    for obj in list.into_iter().rev() {
+                        self.fill_stack(&obj);
+                    }
+                }
+                _ => {}
+            }
+            e
+        })    
     }
 }
 

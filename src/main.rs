@@ -21,10 +21,11 @@ use uuid::Uuid;
 fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
     where T: Read + Seek {
     
-        let mut i = file.walk_hard_links();
+        let i = file.walk_hard_links();
 
         for entry in i {
-            println!("Path: {:?}", entry.path);
+            println!("Path: {:?}", entry.parent);
+            println!("Prop: {}", entry.property);
             println!("Value: {:?}", entry.value);
         }
 
