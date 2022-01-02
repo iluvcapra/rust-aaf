@@ -11,12 +11,8 @@ mod aaf;
 
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::file::AAFFile;
-// use crate::properties::*;
-// use crate::aaf::classes::*;
-
 use std::io::{Read, Seek};
 
-// use uuid::Uuid;
 
 fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
     where T: Read + Seek {
@@ -24,9 +20,12 @@ fn print_object<T>(file : &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
         let i = file.walk_properties();
 
         for entry in i {
-            println!("Parent: {:?}", entry.parent);
-            println!("Prop: {}", entry.property);
-            println!("Value: {:?}", entry.value);
+            let indent = std::iter::repeat("  ")
+                .take(entry.depth())
+                .collect::<String>();
+
+            println!("{}Parent: {:?}", indent, entry.parent().path);
+            println!("{}Prop: {}", indent, entry.property_id());
         }
 }
 
