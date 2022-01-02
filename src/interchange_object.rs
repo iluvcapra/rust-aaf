@@ -2,7 +2,6 @@ use std::fmt;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-
 pub trait InterchangeObject {
     fn auid(&self) -> Uuid;
     fn path(&self) -> PathBuf;
@@ -10,8 +9,8 @@ pub trait InterchangeObject {
 
 #[derive(Clone)]
 pub struct InterchangeObjectDescriptor {
-    pub auid : Uuid,
-    pub path : PathBuf,
+    pub auid: Uuid,
+    pub path: PathBuf,
 }
 
 impl fmt::Debug for InterchangeObjectDescriptor {
@@ -22,4 +21,3 @@ impl fmt::Debug for InterchangeObjectDescriptor {
             .finish()
     }
 }
-
