@@ -1,9 +1,8 @@
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::io::Cursor;
 #[allow(dead_code)]
 #[allow(unused_imports)]
-
 use uuid::Uuid;
-use std::io::Cursor;
-use byteorder::{LittleEndian, ReadBytesExt};
 
 pub type OMByteOrder = u8;
 pub type OMVersion = u8;
@@ -32,13 +31,13 @@ pub type PhaseFrameType = AAFInt32;
 #[derive(Debug, PartialEq)]
 pub struct TimeStamp {
     pub date: (i16, u8, u8),
-    pub time: (u8, u8, u8, u8)
+    pub time: (u8, u8, u8, u8),
 }
 
 #[derive(Debug, PartialEq)]
 pub struct VersionType {
     pub major: u8,
-    pub minor: u8
+    pub minor: u8,
 }
 
 pub trait AAFFrom {
@@ -49,7 +48,10 @@ pub trait AAFInto<F> {
     fn aaf_into(self: Self) -> F;
 }
 
-impl<T> AAFInto<T> for &[u8] where T: AAFFrom {
+impl<T> AAFInto<T> for &[u8]
+where
+    T: AAFFrom,
+{
     fn aaf_into(self: Self) -> T {
         T::aaf_from(self)
     }
@@ -57,29 +59,32 @@ impl<T> AAFInto<T> for &[u8] where T: AAFFrom {
 
 impl AAFFrom for AAFUInt16 {
     fn aaf_from(item: &[u8]) -> Self {
-        Cursor::new(item).read_u16::<LittleEndian>()
+        Cursor::new(item)
+            .read_u16::<LittleEndian>()
             .expect("Error reading AAFUInt16")
     }
 }
 
 impl AAFFrom for u32 {
     fn aaf_from(item: &[u8]) -> Self {
-        Cursor::new(item).read_u32::<LittleEndian>()
+        Cursor::new(item)
+            .read_u32::<LittleEndian>()
             .expect("Failed to decode u32")
     }
 }
 
-
 impl AAFFrom for AAFUInt64 {
     fn aaf_from(item: &[u8]) -> Self {
-        Cursor::new(item).read_u64::<LittleEndian>()
+        Cursor::new(item)
+            .read_u64::<LittleEndian>()
             .expect("Failed to decode AAFUInt64")
     }
 }
 
 impl AAFFrom for AAFInt16 {
     fn aaf_from(item: &[u8]) -> Self {
-        Cursor::new(item).read_i16::<LittleEndian>()
+        Cursor::new(item)
+            .read_i16::<LittleEndian>()
             .expect("Error  reading AAFInt16")
     }
 }
@@ -91,7 +96,12 @@ impl AAFFrom for TimeStamp {
         } else {
             TimeStamp {
                 date: (item[0..2].aaf_into(), item[2].into(), item[3].into()),
-                time: (item[4].into(), item[5].into(), item[6].into(), item[7].into())
+                time: (
+                    item[4].into(),
+                    item[5].into(),
+                    item[6].into(),
+                    item[7].into(),
+                ),
             }
         }
     }
@@ -104,7 +114,7 @@ impl AAFFrom for VersionType {
         } else {
             VersionType {
                 major: item[0].into(),
-                minor: item[1].into()
+                minor: item[1].into(),
             }
         }
     }
