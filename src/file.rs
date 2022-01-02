@@ -1,17 +1,17 @@
+use std::fs::File;
 /// file.rs
 ///
 use std::io;
 use std::io::{Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
-use std::fs::File;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use cfb;
 
+use crate::aaf::classes::{AAFObject, Header};
 use crate::interchange_object::InterchangeObjectDescriptor;
 use crate::properties::*;
 use crate::types::*;
-use crate::aaf::classes::{Header, MetaDictionary, AAFObject};
 
 const AAF_FILE_HEADER_PID: OMPropertyId = 0x0002;
 const AAF_FILE_METADICTIONARY_PID: OMPropertyId = 0x0001;
@@ -42,15 +42,16 @@ impl AAFEntry {
     }
 }
 
-pub struct AAFPropertyIterator<'a,F> {
+pub struct AAFPropertyIterator<'a, F> {
     file: &'a mut AAFFile<F>,
     stack: Vec<AAFEntry>,
-} 
+}
 
-impl<'a,F> AAFPropertyIterator<'a,F> where F:Read+Seek {
-    pub(crate) fn new(file: &'a mut AAFFile<F>, 
-        root_object: InterchangeObjectDescriptor) -> Self {
-
+impl<'a, F> AAFPropertyIterator<'a, F>
+where
+    F: Read + Seek,
+{
+    pub(crate) fn new(file: &'a mut AAFFile<F>, root_object: InterchangeObjectDescriptor) -> Self {
         let mut retval = AAFPropertyIterator {
             file,
             stack: vec![],
@@ -60,21 +61,23 @@ impl<'a,F> AAFPropertyIterator<'a,F> where F:Read+Seek {
         retval
     }
 
-    fn fill_stack(&mut self, parent: &InterchangeObjectDescriptor, 
-        depth: usize) {
+    fn fill_stack(&mut self, parent: &InterchangeObjectDescriptor, depth: usize) {
         for pid in self.file.all_property_ids(parent) {
-            let pv = self.file.get_value(&parent, pid); 
+            let pv = self.file.get_value(&parent, pid);
             self.stack.push(AAFEntry {
                 parent: parent.clone(),
                 property: pid,
                 value: pv,
-                depth: depth + 1
-            })        
-        } 
+                depth: depth + 1,
+            })
+        }
     }
 }
 
-impl<'a, F> Iterator for AAFPropertyIterator<'_, F> where F: Read + Seek{
+impl<'a, F> Iterator for AAFPropertyIterator<'_, F>
+where
+    F: Read + Seek,
+{
     type Item = AAFEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -82,12 +85,12 @@ impl<'a, F> Iterator for AAFPropertyIterator<'_, F> where F: Read + Seek{
             match &e.value {
                 Some(PropertyValue::Single(obj)) => {
                     self.fill_stack(&obj, e.depth());
-                },
+                }
                 Some(PropertyValue::Vector(list)) => {
                     for obj in list.into_iter().rev() {
                         self.fill_stack(&obj, e.depth());
                     }
-                },
+                }
                 Some(PropertyValue::Set(list)) => {
                     for obj in list.into_iter().rev() {
                         self.fill_stack(&obj, e.depth());
@@ -96,7 +99,7 @@ impl<'a, F> Iterator for AAFPropertyIterator<'_, F> where F: Read + Seek{
                 _ => {}
             }
             e
-        })    
+        })
     }
 }
 
@@ -135,27 +138,27 @@ impl AAFFile<File> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
-    
     /// Walk the AAF object graph
     ///
     ///
     pub fn walk_properties(&mut self) -> AAFPropertyIterator<F> {
-        AAFPropertyIterator::new(self, self.root_object())    
+        AAFPropertyIterator::new(self, self.root_object())
     }
 
     pub fn header(mut self) -> Header<F> {
-        if let Some(PropertyValue::Single(obj)) = 
-            self.get_value(&self.root_object(), AAF_FILE_HEADER_PID) {
+        if let Some(PropertyValue::Single(obj)) =
+            self.get_value(&self.root_object(), AAF_FILE_HEADER_PID)
+        {
             Header::make(self, obj)
         } else {
             panic!()
         }
     }
-    
+
     // pub fn meta_dictionary(&mut self) -> MetaDictionary<F> {
-    //     if let Some(PropertyValue::Single(obj)) = 
+    //     if let Some(PropertyValue::Single(obj)) =
     //         self.get_value(&self.root_object(), AAF_FILE_METADICTIONARY_PID) {
-    //         MetaDictionary { 
+    //         MetaDictionary {
     //             file: self,
     //             object: obj
     //         }
@@ -171,8 +174,11 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     /// Get the value of an object property.
-    pub fn get_value(&mut self, object: &InterchangeObjectDescriptor,
-        pid: OMPropertyId) -> Option<PropertyValue> {
+    pub fn get_value(
+        &mut self,
+        object: &InterchangeObjectDescriptor,
+        pid: OMPropertyId,
+    ) -> Option<PropertyValue> {
         let prop = self.raw_property_by_pid(object, pid)?;
         self.resolve_property_value(object, &prop)
     }
@@ -205,21 +211,27 @@ impl<F: Read + Seek> AAFFile<F> {
         for pid in &pid_path[0..pid_path.len() - 1] {
             let p1 = self.raw_property_by_pid(&obj, *pid).unwrap();
             let pv = self.resolve_property_value(&obj, &p1).unwrap();
-            obj = pv.unwrap_object(); 
+            obj = pv.unwrap_object();
         }
 
-        let pfinal = self.raw_property_by_pid(&obj, pid_path[pid_path.len() - 1]).unwrap();
-        let found = self.resolve_property_value(&obj, &pfinal).unwrap()
+        let pfinal = self
+            .raw_property_by_pid(&obj, pid_path[pid_path.len() - 1])
+            .unwrap();
+        let found = self
+            .resolve_property_value(&obj, &pfinal)
+            .unwrap()
             .unwrap_set()
             .into_iter()
             .find(|i| {
-                let ident = self.raw_property_by_pid(&i, weak_ref.key_pid)
-                    .unwrap().raw_value;
+                let ident = self
+                    .raw_property_by_pid(&i, weak_ref.key_pid)
+                    .unwrap()
+                    .raw_value;
                 *ident == weak_ref.identification
             })
             .unwrap();
 
-        PropertyValue::Reference(found) 
+        PropertyValue::Reference(found)
     }
 
     /// All of the raw properties for a given InterchangeObjectDescriptor
@@ -238,7 +250,8 @@ impl<F: Read + Seek> AAFFile<F> {
     }
 
     /// Retrive a raw property for an InterchangeObjectDescriptor
-    fn raw_property_by_pid(&mut self,
+    fn raw_property_by_pid(
+        &mut self,
         object: &InterchangeObjectDescriptor,
         pid: OMPropertyId,
     ) -> Option<RawProperty> {
@@ -247,23 +260,24 @@ impl<F: Read + Seek> AAFFile<F> {
             .find(|p| p.pid == pid)
     }
 
-    fn resolve_property_value(&mut self,
+    fn resolve_property_value(
+        &mut self,
         object: &InterchangeObjectDescriptor,
-        property: &RawProperty) -> Option<PropertyValue> {
-        let raw_data = 
-            Self::raw_property_by_pid(self, object, property.pid)?.raw_value;
+        property: &RawProperty,
+    ) -> Option<PropertyValue> {
+        let raw_data = Self::raw_property_by_pid(self, object, property.pid)?.raw_value;
 
         match property.stored_form {
             SF_DATA => Some(PropertyValue::Data(raw_data)),
             SF_DATA_STREAM => {
                 let decoded_name = property.raw_string_value();
                 let ref_path = object.path.join(decoded_name);
-                Some( PropertyValue::Stream(ref_path))
+                Some(PropertyValue::Stream(ref_path))
             }
             SF_STRONG_OBJECT_REF => {
                 let decoded_name = property.raw_string_value();
                 let ref_path = object.path.join(decoded_name);
-                Some( PropertyValue::Single(self.object(ref_path)))
+                Some(PropertyValue::Single(self.object(ref_path)))
             }
             SF_STRONG_OBJECT_REF_VECTOR => {
                 let decoded_name = property.raw_string_value();
@@ -278,7 +292,7 @@ impl<F: Read + Seek> AAFFile<F> {
                     .map(|path| self.object(path))
                     .collect();
 
-                Some( PropertyValue::Vector(members))
+                Some(PropertyValue::Vector(members))
             }
             SF_STRONG_OBJECT_REF_SET => {
                 let decoded_name = property.raw_string_value();
@@ -293,11 +307,11 @@ impl<F: Read + Seek> AAFFile<F> {
                     .map(|path| self.object(path))
                     .collect();
 
-                Some( PropertyValue::Set(members))
+                Some(PropertyValue::Set(members))
             }
             SF_WEAK_OBJECT_REF => {
                 let weak_ref = WeakObjectReference::from_data(&property.raw_value);
-                Some( self.resolve_weak_reference(weak_ref))
+                Some(self.resolve_weak_reference(weak_ref))
             }
             SF_WEAK_OBJECT_REF_VECTOR | SF_WEAK_OBJECT_REF_SET => {
                 let decoded_name = property.raw_string_value();
@@ -309,14 +323,12 @@ impl<F: Read + Seek> AAFFile<F> {
 
                 let refs = weak_vec_refs
                     .into_iter()
-                    .map( |r| {
-                        self.resolve_weak_reference(r).unwrap_reference() 
-                    })
+                    .map(|r| self.resolve_weak_reference(r).unwrap_reference())
                     .collect();
                 if property.stored_form == SF_WEAK_OBJECT_REF_VECTOR {
-                    Some( PropertyValue::ReferenceVector(refs) )
+                    Some(PropertyValue::ReferenceVector(refs))
                 } else {
-                    Some( PropertyValue::ReferenceSet(refs) )
+                    Some(PropertyValue::ReferenceSet(refs))
                 }
             }
             _ => panic!("Unrecgonized stored form found."),
@@ -577,27 +589,26 @@ mod tests {
 
         let all = f.all_property_ids(&root);
 
-        assert_eq!(all.len(), 2, "Found property ids"); 
+        assert_eq!(all.len(), 2, "Found property ids");
     }
 
     #[test]
     fn test_get_header() {
         let test_path = "testmedia/AAF_Test_1/AAF_Test_1.aaf";
         let mut f = AAFFile::open(test_path).unwrap();
-        
+
         let mut h = f.header();
 
         assert_eq!(h.byte_order(), 0x4949);
-        
-        assert_eq!(h.last_modified(), 
-            TimeStamp {
-                date: (2021, 11, 9) ,
-                time: (15,28,58,0)
-            });
 
-        assert_eq!(h.version(), 
-            VersionType {
-                major: 1, minor: 1
-            })
+        assert_eq!(
+            h.last_modified(),
+            TimeStamp {
+                date: (2021, 11, 9),
+                time: (15, 28, 58, 0)
+            }
+        );
+
+        assert_eq!(h.version(), VersionType { major: 1, minor: 1 })
     }
 }
