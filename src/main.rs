@@ -1,5 +1,5 @@
-use encoding::all::UTF_16LE;
-use encoding::{DecoderTrap, Encoding};
+// use encoding::all::UTF_16LE;
+// use encoding::{DecoderTrap, Encoding};
 
 mod aaf;
 mod file;
@@ -9,10 +9,10 @@ mod session;
 mod types;
 
 use crate::file::AAFFile;
-use crate::interchange_object::InterchangeObjectDescriptor;
+// use crate::interchange_object::InterchangeObjectDescriptor;
 use std::io::{Read, Seek};
 
-fn print_object<T>(file: &mut AAFFile<T>, obj: &InterchangeObjectDescriptor)
+fn print_object<T>(file: &mut AAFFile<T>)
 where
     T: Read + Seek,
 {
@@ -33,5 +33,5 @@ fn main() {
     let mut f = AAFFile::open(test_path).expect("error opening file");
 
     let root = f.root_object();
-    print_object(&mut f, &root);
+    print_object(&mut f);
 }
