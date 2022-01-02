@@ -115,8 +115,11 @@ impl AAFFile<File> {
 }
 
 impl<F: Read + Seek> AAFFile<F> {
-
-    pub fn walk_hard_links(&mut self) -> AAFPropertyIterator<F> {
+    
+    /// Walk the AAF object graph
+    ///
+    ///
+    pub fn walk_properties(&mut self) -> AAFPropertyIterator<F> {
         AAFPropertyIterator::new(self, self.root_object())    
     }
 
